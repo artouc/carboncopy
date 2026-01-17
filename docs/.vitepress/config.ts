@@ -5,6 +5,10 @@ export default defineConfig({
     description: "High-precision HTML to PDF converter",
     lang: "ja-JP",
 
+    head: [
+        ["link", { rel: "icon", href: "/favicon.ico" }]
+    ],
+
     themeConfig: {
         logo: {
             src: "/carboncopy-logo.svg",
