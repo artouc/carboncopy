@@ -2,10 +2,25 @@
 
 `@osaxyz/carboncopy` は、HTML要素をピクセルパーフェクトにPDFへ変換するJavaScriptライブラリです。
 
+## クイックスタート
+
+```typescript
+import { convert } from "@osaxyz/carboncopy"
+
+// HTML要素をPDFに変換
+const element = document.getElementById("content")
+const result = await convert(element)
+result.download("document.pdf")
+```
+
+たった3行で、HTMLをPDFに変換できます。
+
 ## 特徴
 
-- **正確なレイアウト再現**: `getBoundingClientRect` を使用し、ブラウザの計算結果をそのまま使用
-- **ベクター出力**: テキストはベクターデータとして出力され、検索・選択可能
+- **HTML to PDF**: HTML要素をそのままPDFに変換
+- **正確なレイアウト**: `getBoundingClientRect` でブラウザの計算結果をそのまま使用
+- **ベクター出力**: テキストはベクターデータとして出力、検索・選択可能
+- **自動サイズ調整**: HTML要素のサイズに合わせてPDFサイズを自動決定
 - **日本語対応**: CIDフォント埋め込みによる完全な日本語サポート
 - **軽量**: Puppeteer/Chromium不要、ブラウザのみで動作
 
@@ -29,5 +44,6 @@
 
 ## 次のステップ
 
-- [Getting Started](/guide/getting-started) - インストールと基本的な使い方
-- [Basic Usage](/guide/basic-usage) - 詳細な使用例
+- [Getting Started](/guide/getting-started) - インストールとHTML to PDF変換
+- [PDF標準フォント](/guide/standard-fonts) - フォントの自動マッピング
+- [日本語フォント](/guide/japanese-fonts) - 日本語対応の方法

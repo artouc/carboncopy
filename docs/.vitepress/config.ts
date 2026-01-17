@@ -24,26 +24,40 @@ export default defineConfig({
                     items: [
                         { text: "Introduction", link: "/guide/" },
                         { text: "Getting Started", link: "/guide/getting-started" },
-                        { text: "Basic Usage", link: "/guide/basic-usage" },
                     ]
                 },
                 {
-                    text: "機能",
+                    text: "フォント",
                     items: [
                         { text: "PDF標準フォント", link: "/guide/standard-fonts" },
-                        { text: "テキスト描画", link: "/guide/text-rendering" },
                         { text: "日本語フォント", link: "/guide/japanese-fonts" },
+                    ]
+                },
+                {
+                    text: "描画",
+                    items: [
+                        { text: "テキスト描画", link: "/guide/text-rendering" },
                         { text: "画像埋め込み", link: "/guide/images" },
                         { text: "テーブル", link: "/guide/tables" },
+                    ]
+                },
+                {
+                    text: "その他",
+                    items: [
+                        { text: "プログラムでPDF生成", link: "/guide/basic-usage" },
                     ]
                 }
             ],
             "/api/": [
                 {
-                    text: "API Reference",
+                    text: "HTML to PDF",
                     items: [
-                        { text: "Overview", link: "/api/" },
-                        { text: "HtmlToPdf", link: "/api/html-to-pdf" },
+                        { text: "convert()", link: "/api/html-to-pdf" },
+                    ]
+                },
+                {
+                    text: "Low-level API",
+                    items: [
                         { text: "PDFDocument", link: "/api/pdf-document" },
                         { text: "PDFPage", link: "/api/pdf-page" },
                     ]

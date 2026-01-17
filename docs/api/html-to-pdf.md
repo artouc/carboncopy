@@ -1,42 +1,48 @@
-# HtmlToPdf
+# convert()
 
-HTML要素をPDFに変換する高レベルAPIです。
+HTML要素をPDFに変換するメインAPIです。
 
 ## インポート
 
 ```typescript
-import { convert, HtmlToPdf } from "@osaxyz/carboncopy"
+import { convert } from "@osaxyz/carboncopy"
 ```
 
-## convert 関数
-
-### シグネチャ
+## シグネチャ
 
 ```typescript
 function convert(
-    element: HTMLElement,
+    element: Element,
     options?: ConvertOptions
 ): Promise<PDFResult>
 ```
 
-### パラメータ
+## 基本的な使い方
+
+```typescript
+const element = document.getElementById("content")
+const result = await convert(element)
+result.download("document.pdf")
+```
+
+## パラメータ
 
 | パラメータ | 型 | 説明 |
 |-----------|-----|------|
-| element | HTMLElement | 変換対象のHTML要素 |
+| element | Element | 変換対象のHTML要素 |
 | options | ConvertOptions | 変換オプション（任意） |
 
-### ConvertOptions
+## ConvertOptions
 
 ```typescript
 interface ConvertOptions {
-    /** ページフォーマット */
-    format?: "A4" | "A3" | "A5" | "Letter" | "Legal"
+    /** ページサイズ: 'auto' | 'A4' | 'Letter' | [width, height] (mm) */
+    format?: "auto" | "A4" | "A3" | "A5" | "Letter" | "Legal" | [number, number]
 
-    /** ページの向き */
+    /** ページの向き（format が 'auto' の場合は無視） */
     orientation?: "portrait" | "landscape"
 
-    /** マージン（pt単位） */
+    /** マージン（mm単位） */
     margin?: {
         top?: number
         right?: number
@@ -44,90 +50,113 @@ interface ConvertOptions {
         left?: number
     }
 
-    /** カスタムフォント */
-    fonts?: Array<{
-        name: string
-        url: string
-    }>
+    /** 背景色を含めるか */
+    background?: boolean
 
-    /** PDFメタデータ */
-    title?: string
-    author?: string
+    /** 無視する要素のセレクタ */
+    ignoreSelectors?: string[]
 
-    /** 背景を含めるか */
-    includeBackground?: boolean
+    /** ドキュメント情報 */
+    info?: {
+        title?: string
+        author?: string
+        subject?: string
+    }
+
+    /** 進捗コールバック */
+    onProgress?: (progress: number) => void
 }
 ```
+
+### デフォルト値
+
+| オプション | デフォルト値 |
+|-----------|------------|
+| format | `"auto"` |
+| orientation | `"portrait"` |
+| margin | `{ top: 0, right: 0, bottom: 0, left: 0 }` |
+| background | `true` |
 
 ### 戻り値
 
 `Promise<PDFResult>` - PDF生成結果
 
-### 使用例
+## 使用例
+
+### 基本
 
 ```typescript
 import { convert } from "@osaxyz/carboncopy"
 
-// 基本的な使い方
 const element = document.getElementById("content")
 const result = await convert(element)
 result.download("document.pdf")
+```
 
-// オプション指定
+### 自動サイズ（デフォルト）
+
+```typescript
+// HTML要素のサイズに合わせてPDFサイズが決まる
+const result = await convert(element)  // format: "auto"
+```
+
+### 固定サイズ
+
+```typescript
 const result = await convert(element, {
     format: "A4",
-    orientation: "portrait",
-    margin: { top: 20, right: 20, bottom: 20, left: 20 },
-    title: "My Document",
-    author: "carboncopy",
-    includeBackground: true,
+    orientation: "landscape",
+    margin: { top: 10, right: 10, bottom: 10, left: 10 },
 })
 ```
 
-## HtmlToPdf クラス
-
-より細かい制御が必要な場合に使用します。
-
-### コンストラクタ
+### カスタムサイズ（mm指定）
 
 ```typescript
-const converter = new HtmlToPdf(options?: ConvertOptions)
-```
-
-### メソッド
-
-#### render
-
-```typescript
-async render(element: HTMLElement): Promise<void>
-```
-
-HTML要素を解析してPDFコンテンツを構築します。
-
-#### save
-
-```typescript
-save(): PDFResult
-```
-
-PDFを生成して結果を返します。
-
-### 使用例
-
-```typescript
-import { HtmlToPdf } from "@osaxyz/carboncopy"
-
-const converter = new HtmlToPdf({
-    format: "A4",
-    margin: { top: 40, right: 40, bottom: 40, left: 40 },
+const result = await convert(element, {
+    format: [200, 300],  // 200mm x 300mm
 })
-
-await converter.render(document.getElementById("page1"))
-// 追加のレンダリング処理...
-
-const result = converter.save()
-result.download("multi-section.pdf")
 ```
+
+### メタデータ付き
+
+```typescript
+const result = await convert(element, {
+    info: {
+        title: "Invoice #001",
+        author: "My Company",
+    },
+})
+```
+
+### 進捗表示
+
+```typescript
+const result = await convert(element, {
+    onProgress: (progress) => {
+        console.log(`${Math.round(progress * 100)}% complete`)
+    },
+})
+```
+
+## フォントマッピング
+
+HTMLの `font-family` は自動的にPDF標準フォントにマッピングされます。
+
+| CSS font-family | PDFフォント |
+|-----------------|------------|
+| serif, Times, Georgia, Palatino | Times ファミリー |
+| monospace, Courier, Consolas, Monaco | Courier ファミリー |
+| sans-serif, Arial, Helvetica, その他 | Helvetica ファミリー |
+
+`font-weight` と `font-style` も反映されます:
+
+- `font-weight: bold` (700以上) → Bold バリアント
+- `font-style: italic/oblique` → Italic/Oblique バリアント
+
+::: warning
+PDF標準フォントは日本語をサポートしていません。日本語を含む場合は [日本語フォント](/guide/japanese-fonts) を参照してください。
+:::
 
 ## 動作の仕組み
 
