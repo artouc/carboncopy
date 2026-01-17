@@ -461,3 +461,262 @@ export function isTransparent(color: RGBAColor | null): boolean {
 export function isValidColor(color: RGBAColor | null): color is RGBAColor {
   return color !== null && color.a > 0;
 }
+
+/**
+ * グラデーションのカラーストップ
+ */
+export interface GradientColorStop {
+  color: RGBAColor;
+  position: number; // 0-1
+}
+
+/**
+ * 線形グラデーション情報
+ */
+export interface LinearGradient {
+  type: 'linear';
+  angle: number; // degrees (0 = to top, 90 = to right)
+  colorStops: GradientColorStop[];
+}
+
+/**
+ * 放射状グラデーション情報
+ */
+export interface RadialGradient {
+  type: 'radial';
+  colorStops: GradientColorStop[];
+}
+
+export type ParsedGradient = LinearGradient | RadialGradient;
+
+/**
+ * CSS linear-gradient を解析
+ *
+ * 対応フォーマット:
+ * - linear-gradient(#f00, #00f)
+ * - linear-gradient(to right, #f00, #00f)
+ * - linear-gradient(45deg, #f00, #00f)
+ * - linear-gradient(135deg, #667eea 0%, #764ba2 100%)
+ */
+export function parseGradient(gradientStr: string): ParsedGradient | null {
+  if (!gradientStr) return null;
+
+  const str = gradientStr.trim();
+
+  // linear-gradient
+  if (str.startsWith('linear-gradient(')) {
+    return parseLinearGradient(str);
+  }
+
+  // radial-gradient (基本対応)
+  if (str.startsWith('radial-gradient(')) {
+    return parseRadialGradient(str);
+  }
+
+  return null;
+}
+
+/**
+ * linear-gradient を解析
+ */
+function parseLinearGradient(str: string): LinearGradient | null {
+  // 括弧内の内容を抽出
+  const match = str.match(/linear-gradient\s*\(\s*(.+)\s*\)/i);
+  if (!match) return null;
+
+  const content = match[1];
+
+  // カラーストップを分割（カッコ内のカンマは無視）
+  const parts = splitGradientParts(content);
+  if (parts.length < 2) return null;
+
+  let angle = 180; // デフォルト: to bottom
+  let colorStartIndex = 0;
+
+  // 最初の部分が方向指定かどうか確認
+  const firstPart = parts[0].trim();
+
+  if (firstPart.startsWith('to ')) {
+    // to right, to left, to top, to bottom, etc.
+    angle = parseDirectionToAngle(firstPart);
+    colorStartIndex = 1;
+  } else if (/^-?\d+(\.\d+)?(deg|grad|rad|turn)?$/i.test(firstPart)) {
+    // 角度指定
+    angle = parseAngleValue(firstPart);
+    colorStartIndex = 1;
+  }
+
+  // カラーストップを解析
+  const colorStops: GradientColorStop[] = [];
+  const colorParts = parts.slice(colorStartIndex);
+
+  for (let i = 0; i < colorParts.length; i++) {
+    const stop = parseColorStop(colorParts[i], i, colorParts.length);
+    if (stop) {
+      colorStops.push(stop);
+    }
+  }
+
+  if (colorStops.length < 2) return null;
+
+  return {
+    type: 'linear',
+    angle,
+    colorStops,
+  };
+}
+
+/**
+ * radial-gradient を解析（基本的な対応）
+ */
+function parseRadialGradient(str: string): RadialGradient | null {
+  const match = str.match(/radial-gradient\s*\(\s*(.+)\s*\)/i);
+  if (!match) return null;
+
+  const content = match[1];
+  const parts = splitGradientParts(content);
+
+  // シンプルなカラーストップのみ対応
+  const colorStops: GradientColorStop[] = [];
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i].trim();
+    // circle, ellipse, at などの形状指定はスキップ
+    if (part.startsWith('circle') || part.startsWith('ellipse') ||
+        part.startsWith('at ') || part.includes(' at ')) {
+      continue;
+    }
+
+    const stop = parseColorStop(part, colorStops.length, parts.length);
+    if (stop) {
+      colorStops.push(stop);
+    }
+  }
+
+  if (colorStops.length < 2) return null;
+
+  return {
+    type: 'radial',
+    colorStops,
+  };
+}
+
+/**
+ * グラデーション引数をカンマで分割（括弧内のカンマは無視）
+ */
+function splitGradientParts(content: string): string[] {
+  const parts: string[] = [];
+  let current = '';
+  let depth = 0;
+
+  for (const char of content) {
+    if (char === '(') {
+      depth++;
+      current += char;
+    } else if (char === ')') {
+      depth--;
+      current += char;
+    } else if (char === ',' && depth === 0) {
+      parts.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  if (current.trim()) {
+    parts.push(current.trim());
+  }
+
+  return parts;
+}
+
+/**
+ * 方向キーワードを角度に変換
+ */
+function parseDirectionToAngle(direction: string): number {
+  const dir = direction.toLowerCase().replace('to ', '').trim();
+
+  switch (dir) {
+    case 'top': return 0;
+    case 'right': return 90;
+    case 'bottom': return 180;
+    case 'left': return 270;
+    case 'top right': case 'right top': return 45;
+    case 'bottom right': case 'right bottom': return 135;
+    case 'bottom left': case 'left bottom': return 225;
+    case 'top left': case 'left top': return 315;
+    default: return 180;
+  }
+}
+
+/**
+ * 角度値を解析
+ */
+function parseAngleValue(str: string): number {
+  str = str.trim().toLowerCase();
+
+  if (str.endsWith('turn')) {
+    return parseFloat(str) * 360;
+  }
+  if (str.endsWith('rad')) {
+    return parseFloat(str) * (180 / Math.PI);
+  }
+  if (str.endsWith('grad')) {
+    return parseFloat(str) * 0.9;
+  }
+  // deg または数値
+  return parseFloat(str.replace('deg', ''));
+}
+
+/**
+ * カラーストップを解析
+ */
+function parseColorStop(
+  str: string,
+  index: number,
+  total: number
+): GradientColorStop | null {
+  str = str.trim();
+
+  // 色とポジションを分離
+  // 例: "#667eea 0%", "rgb(255, 0, 0) 50%", "#00f"
+  const parts = str.split(/\s+(?=\d)/);
+
+  let colorStr = str;
+  let position: number | null = null;
+
+  if (parts.length >= 2) {
+    // 最後の部分がパーセンテージか確認
+    const lastPart = parts[parts.length - 1];
+    if (lastPart.endsWith('%')) {
+      position = parseFloat(lastPart) / 100;
+      colorStr = parts.slice(0, -1).join(' ');
+    } else if (/^\d+(\.\d+)?$/.test(lastPart)) {
+      // 数値のみ（0-1の範囲と仮定）
+      position = parseFloat(lastPart);
+      colorStr = parts.slice(0, -1).join(' ');
+    }
+  }
+
+  const color = parseColor(colorStr);
+  if (!color) return null;
+
+  // ポジションが指定されていない場合は均等に配置
+  if (position === null) {
+    position = total <= 1 ? 0 : index / (total - 1);
+  }
+
+  return {
+    color,
+    position: Math.max(0, Math.min(1, position)),
+  };
+}
+
+/**
+ * グラデーションの最初の色を取得（フォールバック用）
+ */
+export function getGradientFirstColor(gradient: ParsedGradient | null): RGBAColor | null {
+  if (!gradient || gradient.colorStops.length === 0) return null;
+  return gradient.colorStops[0].color;
+}

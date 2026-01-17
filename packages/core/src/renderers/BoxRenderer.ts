@@ -10,7 +10,7 @@
 import type { PDFPage } from '../pdf/PDFPage.js';
 import type { UnitConverter } from '../utils/UnitConverter.js';
 import type { ExtractedStyles, BorderSide } from '../dom/StyleExtractor.js';
-import { isValidColor, type RGBAColor } from '../utils/ColorParser.js';
+import { isValidColor, parseGradient, getGradientFirstColor, type RGBAColor, type ParsedGradient, type LinearGradient } from '../utils/ColorParser.js';
 import { PDFContentStream } from '../pdf/PDFContentStream.js';
 
 /**
@@ -23,8 +23,17 @@ export function renderBox(
 ): void {
   const { box } = styles;
 
-  // 背景を描画
-  if (isValidColor(styles.backgroundColor)) {
+  // 背景グラデーションを描画
+  if (styles.backgroundImage) {
+    const gradient = parseGradient(styles.backgroundImage);
+    if (gradient) {
+      renderGradientBackground(page, box, gradient, styles.borderRadius, converter);
+    } else if (isValidColor(styles.backgroundColor)) {
+      // グラデーションが解析できなかった場合は背景色を使用
+      renderBackground(page, box, styles.backgroundColor, styles.borderRadius, converter);
+    }
+  } else if (isValidColor(styles.backgroundColor)) {
+    // 背景色を描画
     renderBackground(page, box, styles.backgroundColor, styles.borderRadius, converter);
   }
 
@@ -69,6 +78,200 @@ function renderBackground(
     // 通常の矩形
     page.drawRect(x, y, width, height, { fill: color });
   }
+}
+
+/**
+ * グラデーション背景を描画
+ * 複数の色バンドを使用してグラデーションを近似描画
+ */
+function renderGradientBackground(
+  page: PDFPage,
+  box: ExtractedStyles['box'],
+  gradient: ParsedGradient,
+  borderRadius: ExtractedStyles['borderRadius'],
+  converter: UnitConverter
+): void {
+  const x = converter.convertX(box.borderX);
+  const y = converter.convertY(box.borderY, box.borderHeight);
+  const width = converter.pxToPt(box.borderWidth);
+  const height = converter.pxToPt(box.borderHeight);
+
+  const stream = page.getContentStream();
+  stream.saveState();
+
+  // 角丸があるかどうか
+  const hasRadius =
+    borderRadius.topLeft > 0 ||
+    borderRadius.topRight > 0 ||
+    borderRadius.bottomRight > 0 ||
+    borderRadius.bottomLeft > 0;
+
+  // 角丸がある場合はクリッピングパスを設定
+  if (hasRadius) {
+    setRoundedClipPath(
+      stream,
+      x, y, width, height,
+      converter.pxToPt(borderRadius.topLeft),
+      converter.pxToPt(borderRadius.topRight),
+      converter.pxToPt(borderRadius.bottomRight),
+      converter.pxToPt(borderRadius.bottomLeft)
+    );
+  }
+
+  if (gradient.type === 'linear') {
+    renderLinearGradient(stream, x, y, width, height, gradient);
+  } else {
+    // 放射状グラデーションは最初の色でフォールバック
+    const fallbackColor = getGradientFirstColor(gradient);
+    if (fallbackColor) {
+      stream.setFillColorRGB(fallbackColor.r, fallbackColor.g, fallbackColor.b);
+      stream.rect(x, y, width, height);
+      stream.fill();
+    }
+  }
+
+  stream.restoreState();
+}
+
+/**
+ * 線形グラデーションを描画
+ */
+function renderLinearGradient(
+  stream: PDFContentStream,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  gradient: LinearGradient
+): void {
+  const { angle, colorStops } = gradient;
+
+  // グラデーションのバンド数（多いほど滑らか）
+  const bands = Math.max(50, Math.ceil(Math.max(width, height)));
+
+  // 角度をラジアンに変換（CSSの角度は0degが上、時計回り）
+  // PDFの座標系では下が原点なので調整が必要
+  const angleRad = ((90 - angle) * Math.PI) / 180;
+
+  // グラデーションの方向ベクトル
+  const dirX = Math.cos(angleRad);
+  const dirY = Math.sin(angleRad);
+
+  // グラデーション軸の長さを計算
+  const axisLength = Math.abs(width * dirX) + Math.abs(height * dirY);
+
+  for (let i = 0; i < bands; i++) {
+    const t = i / bands;
+    const tNext = (i + 1) / bands;
+
+    // 現在位置の色を補間
+    const color = interpolateColor(colorStops, (t + tNext) / 2);
+
+    stream.setFillColorRGB(color.r, color.g, color.b);
+
+    // バンドの位置を計算
+    if (Math.abs(dirX) > Math.abs(dirY)) {
+      // 主に水平方向のグラデーション
+      const bandX = x + t * width;
+      const bandWidth = width / bands;
+      stream.rect(bandX, y, bandWidth + 0.5, height); // 0.5はギャップ防止
+    } else {
+      // 主に垂直方向のグラデーション
+      const bandY = y + t * height;
+      const bandHeight = height / bands;
+      stream.rect(x, bandY, width, bandHeight + 0.5);
+    }
+
+    stream.fill();
+  }
+}
+
+/**
+ * 色を補間
+ */
+function interpolateColor(
+  colorStops: { color: RGBAColor; position: number }[],
+  t: number
+): RGBAColor {
+  // tの位置に最も近い2つのカラーストップを見つける
+  let lower = colorStops[0];
+  let upper = colorStops[colorStops.length - 1];
+
+  for (let i = 0; i < colorStops.length - 1; i++) {
+    if (t >= colorStops[i].position && t <= colorStops[i + 1].position) {
+      lower = colorStops[i];
+      upper = colorStops[i + 1];
+      break;
+    }
+  }
+
+  // 線形補間
+  const range = upper.position - lower.position;
+  const ratio = range === 0 ? 0 : (t - lower.position) / range;
+
+  return {
+    r: lower.color.r + (upper.color.r - lower.color.r) * ratio,
+    g: lower.color.g + (upper.color.g - lower.color.g) * ratio,
+    b: lower.color.b + (upper.color.b - lower.color.b) * ratio,
+    a: lower.color.a + (upper.color.a - lower.color.a) * ratio,
+  };
+}
+
+/**
+ * 角丸クリッピングパスを設定
+ */
+function setRoundedClipPath(
+  stream: PDFContentStream,
+  x: number, y: number,
+  width: number, height: number,
+  radiusTL: number, radiusTR: number,
+  radiusBR: number, radiusBL: number
+): void {
+  const maxRadiusX = width / 2;
+  const maxRadiusY = height / 2;
+  radiusTL = Math.min(radiusTL, maxRadiusX, maxRadiusY);
+  radiusTR = Math.min(radiusTR, maxRadiusX, maxRadiusY);
+  radiusBR = Math.min(radiusBR, maxRadiusX, maxRadiusY);
+  radiusBL = Math.min(radiusBL, maxRadiusX, maxRadiusY);
+
+  const k = 0.5522847498;
+
+  stream.moveTo(x + radiusBL, y);
+  stream.lineTo(x + width - radiusBR, y);
+  if (radiusBR > 0) {
+    stream.curveTo(
+      x + width - radiusBR + radiusBR * k, y,
+      x + width, y + radiusBR - radiusBR * k,
+      x + width, y + radiusBR
+    );
+  }
+  stream.lineTo(x + width, y + height - radiusTR);
+  if (radiusTR > 0) {
+    stream.curveTo(
+      x + width, y + height - radiusTR + radiusTR * k,
+      x + width - radiusTR + radiusTR * k, y + height,
+      x + width - radiusTR, y + height
+    );
+  }
+  stream.lineTo(x + radiusTL, y + height);
+  if (radiusTL > 0) {
+    stream.curveTo(
+      x + radiusTL - radiusTL * k, y + height,
+      x, y + height - radiusTL + radiusTL * k,
+      x, y + height - radiusTL
+    );
+  }
+  stream.lineTo(x, y + radiusBL);
+  if (radiusBL > 0) {
+    stream.curveTo(
+      x, y + radiusBL - radiusBL * k,
+      x + radiusBL - radiusBL * k, y,
+      x + radiusBL, y
+    );
+  }
+  stream.closePath();
+  stream.clip();
+  stream.endPath();
 }
 
 /**
