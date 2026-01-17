@@ -9,6 +9,8 @@ export default defineConfig({
         ["link", { rel: "icon", href: "/favicon.ico" }]
     ],
 
+    cleanUrls: true,
+
     themeConfig: {
         logo: {
             src: "/carboncopy-logo.svg",
