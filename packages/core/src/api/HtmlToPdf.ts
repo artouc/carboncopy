@@ -23,9 +23,9 @@ import { PDFResult } from './PDFResult.js';
  * 変換オプション
  */
 export interface ConvertOptions {
-  /** ページサイズ: 'A4', 'Letter', etc. または [width, height] (mm) */
-  format?: PageSize | [number, number];
-  /** ページの向き */
+  /** ページサイズ: 'A4', 'Letter', etc. または [width, height] (mm) または 'auto' (要素サイズに合わせる) */
+  format?: PageSize | [number, number] | 'auto';
+  /** ページの向き (format が 'auto' の場合は無視) */
   orientation?: 'portrait' | 'landscape';
   /** マージン (mm) */
   margin?: {
@@ -56,9 +56,9 @@ export async function convert(
   options: ConvertOptions = {}
 ): Promise<PDFResult> {
   const {
-    format = 'A4',
+    format = 'auto',
     orientation = 'portrait',
-    margin = { top: 10, right: 10, bottom: 10, left: 10 },
+    margin = { top: 0, right: 0, bottom: 0, left: 0 },
     background = true,
     ignoreSelectors = [],
     info,
@@ -71,33 +71,42 @@ export async function convert(
   };
   reportProgress(0);
 
+  // 要素の位置を取得（サイズ計算のため先に取得）
+  const elementRect = element.getBoundingClientRect();
+
+  // px to pt 変換比率 (CSS: 96dpi, PDF: 72dpi)
+  const pxToPtRatio = 72 / 96;
+  const mmToPt = 72 / 25.4;
+
+  // マージンをptに変換
+  const margins = {
+    top: (margin.top ?? 0) * mmToPt,
+    right: (margin.right ?? 0) * mmToPt,
+    bottom: (margin.bottom ?? 0) * mmToPt,
+    left: (margin.left ?? 0) * mmToPt,
+  };
+
   // ページサイズを計算
   let pageWidth: number;
   let pageHeight: number;
 
-  if (Array.isArray(format)) {
+  if (format === 'auto') {
+    // 要素サイズに合わせる (px → pt) + マージン
+    pageWidth = elementRect.width * pxToPtRatio + margins.left + margins.right;
+    pageHeight = elementRect.height * pxToPtRatio + margins.top + margins.bottom;
+  } else if (Array.isArray(format)) {
     // カスタムサイズ (mm)
-    const mmToPt = 72 / 25.4;
     pageWidth = format[0] * mmToPt;
     pageHeight = format[1] * mmToPt;
   } else {
     const size = PAGE_SIZES[format];
     pageWidth = size.width;
     pageHeight = size.height;
-  }
 
-  if (orientation === 'landscape') {
-    [pageWidth, pageHeight] = [pageHeight, pageWidth];
+    if (orientation === 'landscape') {
+      [pageWidth, pageHeight] = [pageHeight, pageWidth];
+    }
   }
-
-  // マージンをptに変換
-  const mmToPt = 72 / 25.4;
-  const margins = {
-    top: (margin.top ?? 10) * mmToPt,
-    right: (margin.right ?? 10) * mmToPt,
-    bottom: (margin.bottom ?? 10) * mmToPt,
-    left: (margin.left ?? 10) * mmToPt,
-  };
 
   // PDFドキュメントを作成
   const doc = new PDFDocument();
@@ -106,9 +115,6 @@ export async function convert(
   }
 
   reportProgress(0.1);
-
-  // 要素の位置を取得
-  const elementRect = element.getBoundingClientRect();
 
   // UnitConverterを作成
   const converter = new UnitConverter(pageHeight);

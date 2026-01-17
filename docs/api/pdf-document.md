@@ -47,14 +47,28 @@ const custom_page = doc.addPage(400, 600)
 
 ### addStandardFont
 
-標準14フォントを追加します。
+標準フォント（serif/sans-serif/monospace）を追加します。
 
 ```typescript
 // addStandardFont(key, fontName)
+
+// sans-serif (Helvetica)
 doc.addStandardFont("F1", "Helvetica")
 doc.addStandardFont("F2", "Helvetica-Bold")
-doc.addStandardFont("F3", "Times-Roman")
-doc.addStandardFont("F4", "Courier")
+doc.addStandardFont("F3", "Helvetica-Oblique")
+doc.addStandardFont("F4", "Helvetica-BoldOblique")
+
+// serif (Times)
+doc.addStandardFont("F5", "Times-Roman")
+doc.addStandardFont("F6", "Times-Bold")
+doc.addStandardFont("F7", "Times-Italic")
+doc.addStandardFont("F8", "Times-BoldItalic")
+
+// monospace (Courier)
+doc.addStandardFont("F9", "Courier")
+doc.addStandardFont("F10", "Courier-Bold")
+doc.addStandardFont("F11", "Courier-Oblique")
+doc.addStandardFont("F12", "Courier-BoldOblique")
 ```
 
 ### addCustomFont

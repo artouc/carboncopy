@@ -6,7 +6,8 @@
     "workspaces": [
         "packages/*",
         "docs",
-        "site"
+        "site",
+        "playground"
     ],
     "scripts": {
         "build": "npm run build -w @osaxyz/carboncopy",
@@ -15,6 +16,8 @@
         "dev:core": "npm run dev -w @osaxyz/carboncopy",
         "dev:docs": "npm run dev -w docs",
         "dev:site": "npm run dev -w site",
+        "dev:playground": "npm run dev -w playground",
+        "playground": "npm run dev -w playground",
         "test": "npm run test -w @osaxyz/carboncopy",
         "test:all": "npm run test --workspaces --if-present"
     },

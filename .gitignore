@@ -53,3 +53,9 @@ llm/
 
 docs/.vitepress/cache
 docs/.vitepress/dist
+
+/ASSETS/
+
+playground/
+
+site/

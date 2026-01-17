@@ -33,10 +33,15 @@ export {
 export {
   StandardFonts,
   type StandardFontName,
+  type FontType,
   mapCSSFontToStandard,
   measureTextWidth,
+  getFontType,
+  getFontWidths,
   HelveticaWidths,
-} from './fonts/StandardFonts.js';
+  TimesRomanWidths,
+  CourierWidths,
+} from "./fonts/StandardFonts.js"
 export {
   FontManager,
   fontManager,

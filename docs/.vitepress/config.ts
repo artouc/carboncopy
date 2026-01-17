@@ -6,6 +6,11 @@ export default defineConfig({
     lang: "ja-JP",
 
     themeConfig: {
+        logo: {
+            src: "/carboncopy-logo.svg",
+            alt: "carboncopy"
+        },
+        siteTitle: false,
         nav: [
             { text: "ガイド", link: "/guide/" },
             { text: "API", link: "/api/" },
@@ -25,6 +30,7 @@ export default defineConfig({
                 {
                     text: "機能",
                     items: [
+                        { text: "PDF標準フォント", link: "/guide/standard-fonts" },
                         { text: "テキスト描画", link: "/guide/text-rendering" },
                         { text: "日本語フォント", link: "/guide/japanese-fonts" },
                         { text: "画像埋め込み", link: "/guide/images" },

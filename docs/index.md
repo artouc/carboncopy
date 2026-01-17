@@ -5,6 +5,9 @@ hero:
   name: "carboncopy"
   text: "High-precision HTML to PDF"
   tagline: 位置・サイズ・スタイルを正確に再現するHTML→PDF変換ライブラリ
+  image:
+    src: /carboncopy-logo.svg
+    alt: carboncopy
   actions:
     - theme: brand
       text: Get Started

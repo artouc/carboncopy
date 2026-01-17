@@ -102,30 +102,50 @@ pdf.drawRect(50, 600, 100, 50, {
 
 ## 標準フォント
 
-以下の14種類の標準フォントが使用可能です（埋め込み不要）。
+3種類のフォントファミリーが使用可能です（埋め込み不要）。
+
+### sans-serif（Helvetica）
 
 | フォント名 | 説明 |
 |-----------|------|
-| Helvetica | サンセリフ体 |
+| Helvetica | 標準 |
 | Helvetica-Bold | 太字 |
 | Helvetica-Oblique | 斜体 |
 | Helvetica-BoldOblique | 太字斜体 |
-| Times-Roman | セリフ体 |
+
+### serif（Times）
+
+| フォント名 | 説明 |
+|-----------|------|
+| Times-Roman | 標準 |
 | Times-Bold | 太字 |
 | Times-Italic | 斜体 |
 | Times-BoldItalic | 太字斜体 |
-| Courier | 等幅フォント |
+
+### monospace（Courier）
+
+| フォント名 | 説明 |
+|-----------|------|
+| Courier | 標準 |
 | Courier-Bold | 太字 |
 | Courier-Oblique | 斜体 |
 | Courier-BoldOblique | 太字斜体 |
-| Symbol | 記号フォント |
-| ZapfDingbats | 装飾記号フォント |
 
 ```typescript
+// sans-serif
 pdf.drawText("Helvetica", 50, 700, { font: "Helvetica" })
-pdf.drawText("Times-Roman", 50, 680, { font: "Times-Roman" })
+
+// serif
+pdf.drawText("Times Roman", 50, 680, { font: "Times-Roman" })
+
+// monospace
 pdf.drawText("Courier", 50, 660, { font: "Courier" })
 ```
+
+::: tip HTMLからの自動マッピング
+`convert()` 関数でHTML要素を変換する際、CSSの `font-family` 設定が自動的に上記フォントにマッピングされます。
+詳しくは [PDF標準フォント](/guide/standard-fonts) を参照してください。
+:::
 
 ## PDFの出力
 

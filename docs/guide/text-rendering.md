@@ -35,22 +35,59 @@ pdf.drawText("36pt", 50, 630, { fontSize: 36 })
 
 ## フォントファミリー
 
-標準14フォントを使用できます。
+2種類のフォントファミリーを使用できます。
+
+### sans-serif（Helvetica）
 
 ```typescript
-// サンセリフ
 pdf.drawText("Helvetica", 50, 750, { font: "Helvetica" })
 pdf.drawText("Helvetica Bold", 50, 720, { font: "Helvetica-Bold" })
 pdf.drawText("Helvetica Oblique", 50, 690, { font: "Helvetica-Oblique" })
+pdf.drawText("Helvetica BoldOblique", 50, 660, { font: "Helvetica-BoldOblique" })
+```
 
-// セリフ
-pdf.drawText("Times Roman", 50, 650, { font: "Times-Roman" })
-pdf.drawText("Times Bold", 50, 620, { font: "Times-Bold" })
-pdf.drawText("Times Italic", 50, 590, { font: "Times-Italic" })
+### serif（Times）
 
-// 等幅
-pdf.drawText("Courier", 50, 550, { font: "Courier" })
-pdf.drawText("Courier Bold", 50, 520, { font: "Courier-Bold" })
+```typescript
+pdf.drawText("Times Roman", 50, 620, { font: "Times-Roman" })
+pdf.drawText("Times Bold", 50, 590, { font: "Times-Bold" })
+pdf.drawText("Times Italic", 50, 560, { font: "Times-Italic" })
+pdf.drawText("Times BoldItalic", 50, 530, { font: "Times-BoldItalic" })
+```
+
+### monospace（Courier）
+
+```typescript
+pdf.drawText("Courier", 50, 490, { font: "Courier" })
+pdf.drawText("Courier Bold", 50, 460, { font: "Courier-Bold" })
+pdf.drawText("Courier Oblique", 50, 430, { font: "Courier-Oblique" })
+pdf.drawText("Courier BoldOblique", 50, 400, { font: "Courier-BoldOblique" })
+```
+
+### HTMLからの自動マッピング
+
+`convert()` でHTML要素を変換する際、CSSの `font-family` 設定が自動的にPDFフォントにマッピングされます。
+
+| CSS font-family | PDFフォント |
+|-----------------|------------|
+| serif, Times, Georgia, Palatino | Times ファミリー |
+| monospace, Courier, Consolas, Monaco | Courier ファミリー |
+| sans-serif, Arial, Helvetica, 他 | Helvetica ファミリー |
+
+```html
+<!-- serif → Times-Roman -->
+<p style="font-family: Georgia, serif;">Serif text</p>
+
+<!-- sans-serif → Helvetica -->
+<p style="font-family: Arial, sans-serif;">Sans-serif text</p>
+
+<!-- monospace → Courier -->
+<code style="font-family: monospace;">Code text</code>
+
+<!-- font-weight と font-style も反映 -->
+<p style="font-family: serif; font-weight: bold; font-style: italic;">
+  Bold Italic Serif → Times-BoldItalic
+</p>
 ```
 
 ## テキスト幅の計測
@@ -61,9 +98,32 @@ pdf.drawText("Courier Bold", 50, 520, { font: "Courier-Bold" })
 import { measureTextWidth } from "@osaxyz/carboncopy"
 
 const text = "Hello, World!"
-const width = measureTextWidth(text, "Helvetica", 24)
 
-console.log(`Text width: ${width}pt`)
+// sans-serif (Helvetica) の場合
+const width_sans = measureTextWidth(text, 24, "sans-serif")
+
+// serif (Times) の場合
+const width_serif = measureTextWidth(text, 24, "serif")
+
+// monospace (Courier) の場合
+const width_mono = measureTextWidth(text, 24, "monospace")
+
+console.log(`Sans-serif width: ${width_sans}pt`)
+console.log(`Serif width: ${width_serif}pt`)
+console.log(`Monospace width: ${width_mono}pt`)
+```
+
+### フォントタイプの判定
+
+CSSのfont-familyからフォントタイプを判定できます。
+
+```typescript
+import { getFontType, measureTextWidth } from "@osaxyz/carboncopy"
+
+const css_font = "Georgia, serif"
+const font_type = getFontType(css_font)  // "serif"
+
+const width = measureTextWidth("Hello", 24, font_type)
 ```
 
 ## 右揃え・中央揃え
@@ -76,7 +136,7 @@ import { measureTextWidth, PAGE_SIZES } from "@osaxyz/carboncopy"
 const page_width = PAGE_SIZES.A4.width
 const text = "Centered Text"
 const font_size = 24
-const text_width = measureTextWidth(text, "Helvetica", font_size)
+const text_width = measureTextWidth(text, font_size, "sans-serif")
 
 // 中央揃え
 const center_x = (page_width - text_width) / 2
