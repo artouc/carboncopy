@@ -141,13 +141,21 @@ function getOrCreateFontMapping(
  *
  * CSSではテキスト位置は要素の上端基準だが、
  * PDFではベースライン基準。
- * 一般的なフォントでは、ベースラインは上端から約80%の位置。
+ * line-heightが1より大きい場合、テキストはライン内で垂直中央揃えされる。
  */
 function calculateBaselineOffset(font: TextRenderNode['font']): number {
-  // 経験的な値: フォントサイズの約80%がベースライン位置
-  // 正確にはフォントメトリクスから計算すべきだが、
-  // 標準フォントではこの近似で十分
-  return font.size * 0.8;
+  const { size: fontSize, lineHeight } = font;
+
+  // line-heightによる余白を計算
+  // テキストはライン内で垂直中央に配置される
+  const extraSpace = lineHeight - fontSize;
+  const topPadding = extraSpace / 2;
+
+  // ベースラインはフォントの上端から約80%の位置
+  // (正確にはascender ratioだが、標準フォントでは0.8で近似)
+  const ascenderRatio = 0.8;
+
+  return topPadding + fontSize * ascenderRatio;
 }
 
 /**
