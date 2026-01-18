@@ -11,7 +11,7 @@ import type { PDFPage } from '../pdf/PDFPage.js';
 import type { UnitConverter } from '../utils/UnitConverter.js';
 import type { TextRenderNode } from '../dom/DOMWalker.js';
 import type { RGBAColor } from '../utils/ColorParser.js';
-import { mapCSSFontToStandard } from '../fonts/StandardFonts.js';
+import { mapCSSFontToStandard, getFontType, measureTextWidth } from '../fonts/StandardFonts.js';
 
 /**
  * フォントマッピング情報
@@ -46,8 +46,8 @@ export function renderText(
   node: TextRenderNode,
   context: TextRenderContext
 ): void {
-  const { page, converter, fontMappings } = context;
-  const { textContent, x, y, font, color } = node;
+  const { page, converter } = context;
+  const { textContent, x, y, width, font, color } = node;
 
   if (!textContent.trim()) {
     return;
@@ -64,11 +64,19 @@ export function renderText(
   const pdfY = converter.convertY(y + baselineOffset, 0);
   const pdfFontSize = converter.convertFontSize(font.size);
 
-  // テキストを描画
+  // フォント幅計算（PDF標準フォントの幅）
+  const fontType = getFontType(font.family);
+  const pdfWidth = measureTextWidth(textContent, pdfFontSize, fontType);
+  // ブラウザで測定した幅をPDF単位に変換
+  const targetWidth = converter.pxToPt(width);
+
+  // テキストを描画（幅調整付き）
   page.drawText(textContent, pdfX, pdfY, {
     font: fontMapping.pdfName,
     fontSize: pdfFontSize,
     color: color ? { r: color.r, g: color.g, b: color.b } : undefined,
+    targetWidth,
+    pdfWidth,
   });
 }
 

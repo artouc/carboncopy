@@ -16,6 +16,10 @@ export interface DrawTextOptions {
   font: string;
   fontSize: number;
   color?: RGBColor;
+  /** ターゲット幅（pt）。指定すると水平スケーリングで調整 */
+  targetWidth?: number;
+  /** PDF計算上の幅（pt）。targetWidthと共に使用してスケール計算 */
+  pdfWidth?: number;
 }
 
 export interface DrawLineOptions {
@@ -65,7 +69,7 @@ export class PDFPage {
    * テキストを描画
    */
   drawText(text: string, x: number, y: number, options: DrawTextOptions): void {
-    const { font, fontSize, color } = options;
+    const { font, fontSize, color, targetWidth, pdfWidth } = options;
 
     this.contents.beginText();
 
@@ -74,16 +78,34 @@ export class PDFPage {
       this.contents.setFillColorRGB(color.r, color.g, color.b);
     }
 
-    // フォント設定（前回と異なる場合のみ）
-    if (this.currentFont !== font || this.currentFontSize !== fontSize) {
+    // 水平スケーリングを計算
+    let scaleX = 1;
+    if (targetWidth && pdfWidth && pdfWidth > 0) {
+      scaleX = targetWidth / pdfWidth;
+      // 極端なスケーリングは避ける（0.5〜2.0の範囲に制限）
+      scaleX = Math.max(0.5, Math.min(2.0, scaleX));
+    }
+
+    // スケーリングが必要な場合はテキスト行列を使用
+    if (scaleX !== 1) {
+      // フォント設定
       this.contents.setFont(font, fontSize);
       this.currentFont = font;
       this.currentFontSize = fontSize;
+      // テキスト行列: [scaleX 0 0 1 x y]
+      this.contents.setTextMatrix(scaleX, 0, 0, 1, x, y);
+      this.contents.showText(text);
+    } else {
+      // フォント設定（前回と異なる場合のみ）
+      if (this.currentFont !== font || this.currentFontSize !== fontSize) {
+        this.contents.setFont(font, fontSize);
+        this.currentFont = font;
+        this.currentFontSize = fontSize;
+      }
+      // 位置とテキスト
+      this.contents.moveText(x, y);
+      this.contents.showText(text);
     }
-
-    // 位置とテキスト
-    this.contents.moveText(x, y);
-    this.contents.showText(text);
 
     this.contents.endText();
   }
