@@ -1,6 +1,6 @@
 # Introduction
 
-`@osaxyz/carboncopy` は、HTML要素をピクセルパーフェクトにPDFへ変換するJavaScriptライブラリです。
+`@osaxyz/carboncopy` は、複雑な要素を含むHTMLを正確にPDFにレンダリングするためのクライアントサイドライブラリです。
 
 ## クイックスタート
 

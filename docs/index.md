@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: "carboncopy"
-  text: "High-precision HTML to PDF"
-  tagline: 位置・サイズ・スタイルを正確に再現するHTML→PDF変換ライブラリ
+  text: "HTML to PDF クライアントサイドライブラリ"
+  tagline: 複雑な要素を含むHTMLを正確にPDFにレンダリング
   image:
     src: /carboncopy-logo.svg
     alt: carboncopy
