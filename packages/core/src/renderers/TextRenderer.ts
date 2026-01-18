@@ -95,6 +95,9 @@ export function renderText(
     const pdfY = converter.convertY(y + baselineOffset, 0)
     const pdfFontSize = converter.convertFontSize(font.size)
 
+    // letter-spacingをpt単位に変換
+    const letterSpacingPt = font.letterSpacing ? converter.pxToPt(font.letterSpacing) : undefined
+
     // CIDフォントの場合は16進数エンコードが必要
     if (fontMapping.is_cid && fontMapping.loaded_font) {
         // 使用文字を記録
@@ -108,6 +111,7 @@ export function renderText(
                 font: fontMapping.pdfName,
                 fontSize: pdfFontSize,
                 color: color ? { r: color.r, g: color.g, b: color.b } : undefined,
+                letterSpacing: letterSpacingPt,
             }
         )
         return
@@ -128,6 +132,7 @@ export function renderText(
             color: color ? { r: color.r, g: color.g, b: color.b } : undefined,
             targetWidth,
             pdfWidth,
+            letterSpacing: letterSpacingPt,
         })
     } else {
         // serif/sans-serifは調整なしで描画
@@ -135,6 +140,7 @@ export function renderText(
             font: fontMapping.pdfName,
             fontSize: pdfFontSize,
             color: color ? { r: color.r, g: color.g, b: color.b } : undefined,
+            letterSpacing: letterSpacingPt,
         })
     }
 }
@@ -168,6 +174,9 @@ function renderTextWithJapaneseFallback(
     const pdfFontSize = converter.convertFontSize(font.size)
     const baselineOffset = calculateBaselineOffset(font)
 
+    // letter-spacingをpt単位に変換
+    const letterSpacingPt = font.letterSpacing ? converter.pxToPt(font.letterSpacing) : undefined
+
     // 利用可能な幅をPDFポイントに変換
     // テキストの開始位置からコンテナ右端までの幅を計算
     const availableWidthPx = maxWidth - (x - containerX)
@@ -198,6 +207,7 @@ function renderTextWithJapaneseFallback(
                 font: fallbackMapping.pdfName,
                 fontSize: pdfFontSize,
                 color: color ? { r: color.r, g: color.g, b: color.b } : undefined,
+                letterSpacing: letterSpacingPt,
             }
         )
 
@@ -357,6 +367,9 @@ export function renderMultilineText(
     const pdfFontSize = converter.convertFontSize(font.size)
     const baselineOffset = calculateBaselineOffset(font)
 
+    // letter-spacingをpt単位に変換
+    const letterSpacingPt = font.letterSpacing ? converter.pxToPt(font.letterSpacing) : undefined
+
     for (const line of lines) {
         if (!line.text.trim()) continue
 
@@ -375,6 +388,7 @@ export function renderMultilineText(
                     font: fontMapping.pdfName,
                     fontSize: pdfFontSize,
                     color: color ? { r: color.r, g: color.g, b: color.b } : undefined,
+                    letterSpacing: letterSpacingPt,
                 }
             )
         } else {
@@ -382,6 +396,7 @@ export function renderMultilineText(
                 font: fontMapping.pdfName,
                 fontSize: pdfFontSize,
                 color: color ? { r: color.r, g: color.g, b: color.b } : undefined,
+                letterSpacing: letterSpacingPt,
             })
         }
     }
