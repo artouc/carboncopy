@@ -381,11 +381,11 @@ async function handleConvert() {
                 </div>
             </div>
 
-            <div class="grid lg:grid-cols-2 gap-8 items-start">
+            <div class="flex flex-col lg:flex-row gap-8 items-start w-full">
                 <!-- Preview Side -->
-                <div class="space-y-4">
-                    <div class="rounded-xl border border-border bg-card shadow-sm overflow-hidden h-[500px] flex flex-col">
-                        <div class="border-b border-border bg-muted/30 px-4 py-2 flex items-center justify-between">
+                <div class="space-y-4 w-full">
+                    <div class="rounded-xl border border-border bg-card shadow-sm overflow-auto h-[400px] md:h-[500px] w-full">
+                        <div class="border-b border-border bg-muted/30 px-4 py-2 flex items-center justify-between sticky top-0 left-0 right-0 z-20 bg-card">
                             <span class="text-xs font-mono text-muted-foreground">preview.html</span>
                             <div class="flex gap-1.5">
                                 <div class="w-2.5 h-2.5 rounded-full bg-red-500/20"></div>
@@ -395,7 +395,7 @@ async function handleConvert() {
                         </div>
 
                         <!-- Preview content area -->
-                        <div class="flex-1 bg-muted/10 p-4 md:p-8 overflow-auto flex items-center justify-center relative">
+                        <div class="bg-muted/10 min-h-[350px] md:min-h-[450px] relative p-4 md:p-8">
                             <!-- Dotted pattern background -->
                             <div
                                 class="absolute inset-0 z-0 opacity-20 pointer-events-none"
@@ -405,15 +405,17 @@ async function handleConvert() {
                                 }"
                             />
 
-                            <div
-                                ref="preview_ref"
-                                class="relative z-10 shadow-lg"
-                                v-html="current_html"
-                            />
+                            <div class="w-fit mx-auto pr-4 md:pr-8">
+                                <div
+                                    ref="preview_ref"
+                                    class="relative z-10 shadow-lg"
+                                    v-html="current_html"
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    <div class="flex justify-between items-center text-sm text-muted-foreground bg-muted/20 p-3 rounded-lg border border-border">
+                    <div class="flex justify-between items-center text-sm text-muted-foreground bg-muted/20 p-3 rounded-lg border border-border w-full">
                         <div class="font-mono">
                             &lt;div id="{{ active_tab }}"&gt;...&lt;/div&gt;
                         </div>
@@ -422,7 +424,7 @@ async function handleConvert() {
                 </div>
 
                 <!-- Code / Controls Side -->
-                <div class="space-y-6">
+                <div class="space-y-6 w-full">
                     <div class="rounded-xl border border-border bg-[#0d0d12] text-white shadow-lg overflow-hidden h-[300px] flex flex-col">
                         <div class="border-b border-white/10 bg-white/5 px-4 py-2 flex items-center gap-2">
                             <div class="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
@@ -430,7 +432,7 @@ async function handleConvert() {
                             <div class="w-3 h-3 rounded-full bg-[#27c93f]"></div>
                             <span class="ml-2 text-xs font-mono text-white/50">main.js</span>
                         </div>
-                        <div class="p-4 font-mono text-sm overflow-auto leading-relaxed">
+                        <div class="p-4 font-mono text-sm overflow-auto leading-relaxed whitespace-nowrap">
                             <span class="text-purple-400">import</span> { convert } <span class="text-purple-400">from</span> <span class="text-green-400">"@osaxyz/carboncopy"</span>;<br/><br/>
                             <span class="text-white/50">// Select the element</span><br/>
                             <span class="text-purple-400">const</span> <span class="text-blue-400">element</span> = <span class="text-yellow-400">document</span>.<span class="text-blue-300">getElementById</span>(<span class="text-green-400">"{{ active_tab }}"</span>);<br/><br/>
