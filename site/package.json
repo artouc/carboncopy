@@ -1,0 +1,26 @@
+{
+    "name": "site",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Official website for @osaxyz/carboncopy",
+    "type": "module",
+    "scripts": {
+        "dev": "nuxt dev",
+        "build": "nuxt build",
+        "generate": "nuxt generate",
+        "preview": "nuxt preview",
+        "postinstall": "nuxt prepare"
+    },
+    "devDependencies": {
+        "@nuxt/devtools": "^2.0.0",
+        "@tailwindcss/postcss": "^4.1.18",
+        "tailwindcss": "^4.1.18",
+        "nuxt": "4.2.2",
+        "typescript": "^5.7.0",
+        "vue": "^3.5.0",
+        "vue-router": "^4.4.0"
+    },
+    "dependencies": {
+        "@osaxyz/carboncopy": "*"
+    }
+}
