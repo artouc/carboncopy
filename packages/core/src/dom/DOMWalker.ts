@@ -13,6 +13,7 @@ import {
   type ExtractedStyles,
 } from './StyleExtractor.js';
 import type { RGBAColor } from '../utils/ColorParser.js';
+import { containsJapanese } from '../utils/JapaneseDetector.js';
 
 /**
  * レンダリングノードの種類
@@ -49,6 +50,10 @@ export interface TextRenderNode {
   y: number;
   width: number;
   height: number;
+  /** テキストの開始X座標（コンテナの左端） */
+  containerX: number;
+  /** 利用可能な最大幅（コンテナ幅 - padding） */
+  maxWidth: number;
   font: {
     family: string;
     size: number;
@@ -244,6 +249,14 @@ function createTextNode(textNode: Text, parentElement: Element): TextRenderNode 
     return null;
   }
 
+  // コンテナの利用可能な幅を計算
+  const computedStyle = window.getComputedStyle(parentElement);
+  const parentRect = parentElement.getBoundingClientRect();
+  const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+  const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+  const containerX = parentRect.left + paddingLeft;
+  const maxWidth = parentRect.width - paddingLeft - paddingRight;
+
   // 単一行の場合はそのまま返す
   if (lines.length === 1) {
     return {
@@ -254,6 +267,8 @@ function createTextNode(textNode: Text, parentElement: Element): TextRenderNode 
       y: lines[0].y,
       width: lines[0].width,
       height: lines[0].height,
+      containerX,
+      maxWidth,
       font: textStyles.font,
       color: textStyles.color,
     };
@@ -269,6 +284,8 @@ function createTextNode(textNode: Text, parentElement: Element): TextRenderNode 
     y: lines[0].y,
     width: lines[0].width,
     height: lines[0].height,
+    containerX,
+    maxWidth,
     font: textStyles.font,
     color: textStyles.color,
   };
@@ -286,6 +303,38 @@ function createTextNodes(textNode: Text, parentElement: Element): TextRenderNode
   const textStyles = extractTextStyles(parentElement);
   const lines = getTextLines(textNode, parentElement);
 
+  if (lines.length === 0) {
+    return [];
+  }
+
+  // コンテナの利用可能な幅を計算
+  const computedStyle = window.getComputedStyle(parentElement);
+  const parentRect = parentElement.getBoundingClientRect();
+  const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+  const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+  const containerX = parentRect.left + paddingLeft;
+  const maxWidth = parentRect.width - paddingLeft - paddingRight;
+
+  // 日本語を含むテキストの場合、ブラウザの行分割を無視して
+  // 全テキストを1つのノードとして返す（PDF側で再折り返しする）
+  const normalizedText = text.replace(/\s+/g, ' ').trim();
+  if (containsJapanese(normalizedText)) {
+    return [{
+      type: 'text' as const,
+      parentElement,
+      textContent: normalizedText,
+      x: lines[0].x,
+      y: lines[0].y,
+      width: lines[0].width,
+      height: lines[0].height,
+      containerX,
+      maxWidth,
+      font: textStyles.font,
+      color: textStyles.color,
+    }];
+  }
+
+  // 日本語を含まない場合は従来通り行ごとに分割
   return lines.map(line => ({
     type: 'text' as const,
     parentElement,
@@ -294,6 +343,8 @@ function createTextNodes(textNode: Text, parentElement: Element): TextRenderNode
     y: line.y,
     width: line.width,
     height: line.height,
+    containerX,
+    maxWidth,
     font: textStyles.font,
     color: textStyles.color,
   }));
@@ -363,10 +414,15 @@ export function getTextLines(
   textNode: Text,
   parentElement: Element
 ): Array<{ text: string; x: number; y: number; width: number; height: number }> {
-  const text = textNode.textContent ?? '';
-  if (!text.trim()) {
+  const rawText = textNode.textContent ?? '';
+  if (!rawText.trim()) {
     return [];
   }
+
+  // 先頭の空白をスキップするためのオフセットを計算
+  const leadingWhitespaceMatch = rawText.match(/^\s*/);
+  const leadingWhitespaceLength = leadingWhitespaceMatch ? leadingWhitespaceMatch[0].length : 0;
+  const text = rawText;
 
   const range = document.createRange();
   range.selectNodeContents(textNode);
@@ -442,10 +498,12 @@ export function getTextLines(
   }
 
   // Y座標の変化点で行を分割
-  const lineStartIndices: number[] = [0];
-  let currentLineY = charYPositions[0];
+  // 先頭の空白をスキップして、最初の非空白文字から開始
+  const startIndex = leadingWhitespaceLength;
+  const lineStartIndices: number[] = [startIndex];
+  let currentLineY = charYPositions[startIndex] ?? charYPositions[0];
 
-  for (let i = 1; i < text.length; i++) {
+  for (let i = startIndex + 1; i < text.length; i++) {
     if (Math.abs(charYPositions[i] - currentLineY) > 5) {
       // Y座標が変化 = 新しい行の開始
       // 単語境界まで戻る（前の行の末尾のスペースを含める）
@@ -495,10 +553,15 @@ export function getTextLines(
     if (trimRects.length > 0) {
       // この範囲の最初の視覚的行の矩形を使用
       const rect = trimRects[0];
+      // 最初の行は実際のテキスト開始位置を使用（インライン要素の後など）
+      // 折り返された行（2行目以降）はlineRectsから位置を取得
+      const useLineRect = i > 0 && i < lineRects.length;
+      const lineX = useLineRect ? lineRects[i].x : rect.x;
+      const lineY = useLineRect ? lineRects[i].y : rect.y;
       lines.push({
         text: normalizedText,
-        x: rect.x,
-        y: rect.y,
+        x: lineX,
+        y: lineY,
         width: rect.width,
         height: rect.height,
       });
