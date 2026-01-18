@@ -75,7 +75,29 @@ export {
   isTransparent,
   isValidColor,
   type RGBAColor,
-} from './utils/ColorParser.js';
+} from "./utils/ColorParser.js"
+
+// Japanese Detection
+export {
+  isJapaneseChar,
+  isAsciiChar,
+  containsJapanese,
+  extractJapaneseChars,
+  extractNonAsciiChars,
+  segmentText,
+  collectCodePoints,
+  collectEmbedRequiredChars,
+  calculateJapaneseRatio,
+  type TextSegment,
+} from "./utils/JapaneseDetector.js"
+
+// Font Config Types
+export type {
+  FontSource as FontSourceType,
+  FontConfig,
+  JapaneseFontFallback,
+  FontEmbedOptions,
+} from "./types/FontConfig.js"
 
 // DOM
 export {
@@ -109,9 +131,13 @@ export {
   renderTextDecoration,
   createTextRenderContext,
   getAllFontMappings,
+  getUsedCodePointsByFont,
+  addCustomFont,
+  setJapaneseFallback,
   type FontMapping,
   type TextRenderContext,
-} from './renderers/TextRenderer.js';
+  type CustomFontConfig,
+} from "./renderers/TextRenderer.js"
 export {
   renderTable,
   collectTableCells,
@@ -141,8 +167,14 @@ export {
 } from './renderers/ImageRenderer.js';
 
 // High-level API
-export { PDFResult } from './api/PDFResult.js';
-export { HtmlToPdf, convert, type ConvertOptions } from './api/HtmlToPdf.js';
+export { PDFResult } from "./api/PDFResult.js"
+export {
+  HtmlToPdf,
+  convert,
+  type ConvertOptions,
+  type FontOption,
+  type FontSource,
+} from "./api/HtmlToPdf.js"
 
 // ============================================
 // シンプルなPDF生成API

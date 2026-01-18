@@ -20,6 +20,8 @@ export interface DrawTextOptions {
   targetWidth?: number;
   /** PDF計算上の幅（pt）。targetWidthと共に使用してスケール計算 */
   pdfWidth?: number;
+  /** letter-spacing（pt単位） */
+  letterSpacing?: number;
 }
 
 export interface DrawLineOptions {
@@ -69,7 +71,7 @@ export class PDFPage {
    * テキストを描画
    */
   drawText(text: string, x: number, y: number, options: DrawTextOptions): void {
-    const { font, fontSize, color, targetWidth, pdfWidth } = options;
+    const { font, fontSize, color, targetWidth, pdfWidth, letterSpacing } = options;
 
     this.contents.beginText();
 
@@ -85,14 +87,17 @@ export class PDFPage {
       this.currentFontSize = fontSize;
     }
 
-    // 文字間隔調整を計算（文字の形を維持しながら幅を調整）
-    let charSpacing = 0;
+    // CSS letter-spacingを適用
+    let charSpacing = letterSpacing ?? 0;
+
+    // 幅調整が必要な場合は追加の文字間隔を計算
     if (targetWidth && pdfWidth && pdfWidth > 0 && text.length > 1) {
       const widthDiff = targetWidth - pdfWidth;
       // 文字間隔 = 幅の差分 / (文字数 - 1)
-      charSpacing = widthDiff / (text.length - 1);
+      let widthAdjustment = widthDiff / (text.length - 1);
       // 極端な調整は避ける（-2pt〜+2pt程度に制限）
-      charSpacing = Math.max(-2, Math.min(2, charSpacing));
+      widthAdjustment = Math.max(-2, Math.min(2, widthAdjustment));
+      charSpacing += widthAdjustment;
     }
 
     // 文字間隔が必要な場合は設定
@@ -142,7 +147,7 @@ export class PDFPage {
    * @param hexText グリフIDの16進数文字列（textToCIDHexで変換済み）
    */
   drawTextCID(hexText: string, x: number, y: number, options: DrawTextOptions): void {
-    const { font, fontSize, color } = options;
+    const { font, fontSize, color, letterSpacing } = options;
 
     this.contents.beginText();
 
@@ -156,8 +161,19 @@ export class PDFPage {
       this.currentFontSize = fontSize;
     }
 
+    // letter-spacingを適用
+    const charSpacing = letterSpacing ?? 0;
+    if (charSpacing !== 0) {
+      this.contents.setCharacterSpacing(charSpacing);
+    }
+
     this.contents.moveText(x, y);
     this.contents.showTextHexRaw(hexText);
+
+    // 文字間隔をリセット
+    if (charSpacing !== 0) {
+      this.contents.setCharacterSpacing(0);
+    }
 
     this.contents.endText();
   }

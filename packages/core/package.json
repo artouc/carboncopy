@@ -1,6 +1,6 @@
 {
     "name": "@osaxyz/carboncopy",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "複雑な要素を含むHTMLを正確にPDFにレンダリングするためのクライアントサイドライブラリ",
     "type": "module",
     "main": "dist/index.cjs",

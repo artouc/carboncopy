@@ -13,6 +13,7 @@ import {
   type ExtractedStyles,
 } from './StyleExtractor.js';
 import type { RGBAColor } from '../utils/ColorParser.js';
+import { containsJapanese } from '../utils/JapaneseDetector.js';
 
 /**
  * レンダリングノードの種類
@@ -49,12 +50,17 @@ export interface TextRenderNode {
   y: number;
   width: number;
   height: number;
+  /** テキストの開始X座標（コンテナの左端） */
+  containerX: number;
+  /** 利用可能な最大幅（コンテナ幅 - padding） */
+  maxWidth: number;
   font: {
     family: string;
     size: number;
     weight: number;
     style: 'normal' | 'italic' | 'oblique';
     lineHeight: number;
+    letterSpacing: number;
   };
   color: RGBAColor | null;
 }
@@ -231,7 +237,15 @@ function processChildNodes(
  */
 function createTextNode(textNode: Text, parentElement: Element): TextRenderNode | null {
   const text = textNode.textContent;
-  if (!text || !text.trim()) {
+  if (!text) {
+    return null;
+  }
+
+  // 空白を保持する要素（pre, code等）かどうか
+  const preservesWhitespace = checkPreservesWhitespace(parentElement);
+
+  // 空白を保持しない場合、空白のみのテキストはスキップ
+  if (!preservesWhitespace && !text.trim()) {
     return null;
   }
 
@@ -244,6 +258,14 @@ function createTextNode(textNode: Text, parentElement: Element): TextRenderNode 
     return null;
   }
 
+  // コンテナの利用可能な幅を計算
+  const computedStyle = window.getComputedStyle(parentElement);
+  const parentRect = parentElement.getBoundingClientRect();
+  const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+  const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+  const containerX = parentRect.left + paddingLeft;
+  const maxWidth = parentRect.width - paddingLeft - paddingRight;
+
   // 単一行の場合はそのまま返す
   if (lines.length === 1) {
     return {
@@ -254,6 +276,8 @@ function createTextNode(textNode: Text, parentElement: Element): TextRenderNode 
       y: lines[0].y,
       width: lines[0].width,
       height: lines[0].height,
+      containerX,
+      maxWidth,
       font: textStyles.font,
       color: textStyles.color,
     };
@@ -269,6 +293,8 @@ function createTextNode(textNode: Text, parentElement: Element): TextRenderNode 
     y: lines[0].y,
     width: lines[0].width,
     height: lines[0].height,
+    containerX,
+    maxWidth,
     font: textStyles.font,
     color: textStyles.color,
   };
@@ -279,13 +305,54 @@ function createTextNode(textNode: Text, parentElement: Element): TextRenderNode 
  */
 function createTextNodes(textNode: Text, parentElement: Element): TextRenderNode[] {
   const text = textNode.textContent;
-  if (!text || !text.trim()) {
+  if (!text) {
+    return [];
+  }
+
+  // 空白を保持する要素（pre, code等）かどうか
+  const preservesWhitespace = checkPreservesWhitespace(parentElement);
+
+  // 空白を保持しない場合、空白のみのテキストはスキップ
+  if (!preservesWhitespace && !text.trim()) {
     return [];
   }
 
   const textStyles = extractTextStyles(parentElement);
   const lines = getTextLines(textNode, parentElement);
 
+  if (lines.length === 0) {
+    return [];
+  }
+
+  // コンテナの利用可能な幅を計算
+  const computedStyle = window.getComputedStyle(parentElement);
+  const parentRect = parentElement.getBoundingClientRect();
+  const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+  const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+  const containerX = parentRect.left + paddingLeft;
+  const maxWidth = parentRect.width - paddingLeft - paddingRight;
+
+  // 日本語を含むテキストの場合、ブラウザの行分割を無視して
+  // 全テキストを1つのノードとして返す（PDF側で再折り返しする）
+  // ただし、空白を保持する要素の場合は従来通り行ごとに処理
+  const normalizedText = text.replace(/\s+/g, ' ').trim();
+  if (containsJapanese(normalizedText) && !preservesWhitespace) {
+    return [{
+      type: 'text' as const,
+      parentElement,
+      textContent: normalizedText,
+      x: lines[0].x,
+      y: lines[0].y,
+      width: lines[0].width,
+      height: lines[0].height,
+      containerX,
+      maxWidth,
+      font: textStyles.font,
+      color: textStyles.color,
+    }];
+  }
+
+  // 空白を保持する要素、または日本語を含まない場合は従来通り行ごとに分割
   return lines.map(line => ({
     type: 'text' as const,
     parentElement,
@@ -294,6 +361,8 @@ function createTextNodes(textNode: Text, parentElement: Element): TextRenderNode
     y: line.y,
     width: line.width,
     height: line.height,
+    containerX,
+    maxWidth,
     font: textStyles.font,
     color: textStyles.color,
   }));
@@ -356,6 +425,35 @@ export function sortByZIndex(nodes: RenderNode[]): RenderNode[] {
 }
 
 /**
+ * 要素が pre または code タグ内にあるかどうかを確認
+ */
+function isInsidePreOrCode(element: Element): boolean {
+  let current: Element | null = element;
+  while (current) {
+    if (current.tagName === 'PRE' || current.tagName === 'CODE') {
+      return true;
+    }
+    current = current.parentElement;
+  }
+  return false;
+}
+
+/**
+ * 要素が空白を保持するかどうかを確認
+ * 祖先要素を辿って pre, code タグまたは white-space: pre* を持つ要素を探す
+ */
+function checkPreservesWhitespace(element: Element): boolean {
+  // pre/code タグ内は常に空白を保持
+  if (isInsidePreOrCode(element)) {
+    return true;
+  }
+  // computed style で white-space を確認
+  const style = window.getComputedStyle(element);
+  const whiteSpace = style.whiteSpace;
+  return whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'pre-line';
+}
+
+/**
  * テキストを行ごとに分割して位置を計算
  * getClientRectsの各矩形（行）に対応するテキストをバイナリサーチで特定
  */
@@ -363,10 +461,28 @@ export function getTextLines(
   textNode: Text,
   parentElement: Element
 ): Array<{ text: string; x: number; y: number; width: number; height: number }> {
-  const text = textNode.textContent ?? '';
-  if (!text.trim()) {
+  const rawText = textNode.textContent ?? '';
+  if (!rawText) {
     return [];
   }
+
+  // 親要素または祖先要素のwhite-spaceスタイルを確認
+  // pre, pre-wrap, pre-line の場合は空白を保持する
+  const preservesWhitespace = checkPreservesWhitespace(parentElement);
+
+  // 空白を保持しない場合、空白のみのテキストはスキップ
+  if (!preservesWhitespace && !rawText.trim()) {
+    return [];
+  }
+
+  // 先頭の空白をスキップするためのオフセットを計算
+  // ただし、空白を保持する要素の場合はスキップしない
+  let leadingWhitespaceLength = 0;
+  if (!preservesWhitespace) {
+    const leadingWhitespaceMatch = rawText.match(/^\s*/);
+    leadingWhitespaceLength = leadingWhitespaceMatch ? leadingWhitespaceMatch[0].length : 0;
+  }
+  const text = rawText;
 
   const range = document.createRange();
   range.selectNodeContents(textNode);
@@ -374,13 +490,71 @@ export function getTextLines(
 
   // 矩形がない場合
   if (allRects.length === 0) {
+    // pre/code内で改行を含むテキストは、改行で分割して処理
+    if (preservesWhitespace && text.includes('\n')) {
+      const textLines = text.split('\n');
+      const results: Array<{ text: string; x: number; y: number; width: number; height: number }> = [];
+
+      let charIndex = 0;
+      for (const line of textLines) {
+        if (line.length > 0) {
+          // この行の範囲を取得して矩形を得る
+          range.setStart(textNode, charIndex);
+          range.setEnd(textNode, charIndex + line.length);
+          const lineRects = range.getClientRects();
+          if (lineRects.length > 0) {
+            results.push({
+              text: line,
+              x: lineRects[0].x,
+              y: lineRects[0].y,
+              width: lineRects[0].width,
+              height: lineRects[0].height,
+            });
+          }
+        }
+        charIndex += line.length + 1; // +1 for the newline character
+      }
+
+      return results;
+    }
     return [];
   }
 
   // 1つの矩形 = 1行（折り返しなし）
   if (allRects.length === 1) {
+    // 空白を保持する場合で改行を含むテキストは、改行で分割する
+    if (preservesWhitespace && text.includes('\n')) {
+      const textLines = text.split('\n');
+      const results: Array<{ text: string; x: number; y: number; width: number; height: number }> = [];
+
+      let charIndex = 0;
+      for (const line of textLines) {
+        if (line.length > 0) {
+          // この行の範囲を取得して矩形を得る
+          range.setStart(textNode, charIndex);
+          range.setEnd(textNode, charIndex + line.length);
+          const lineRects = range.getClientRects();
+          if (lineRects.length > 0) {
+            results.push({
+              text: line,
+              x: lineRects[0].x,
+              y: lineRects[0].y,
+              width: lineRects[0].width,
+              height: lineRects[0].height,
+            });
+          }
+        }
+        charIndex += line.length + 1; // +1 for the newline character
+      }
+
+      return results;
+    }
+
+    // 空白を保持しない場合はテキストを正規化
+    const normalizedText = preservesWhitespace ? text : text.replace(/\s+/g, ' ').trim();
+    if (!normalizedText) return [];
     return [{
-      text: text,
+      text: normalizedText,
       x: allRects[0].x,
       y: allRects[0].y,
       width: allRects[0].width,
@@ -401,13 +575,73 @@ export function getTextLines(
 
   if (lineRects.length <= 1) {
     const rect = lineRects[0] || allRects[0];
+
+    // 空白を保持する場合で改行を含むテキストは、改行で分割する
+    if (preservesWhitespace && text.includes('\n')) {
+      const textLines = text.split('\n');
+      const results: Array<{ text: string; x: number; y: number; width: number; height: number }> = [];
+
+      let charIndex = 0;
+      for (const line of textLines) {
+        if (line.length > 0) {
+          // この行の範囲を取得して矩形を得る
+          range.setStart(textNode, charIndex);
+          range.setEnd(textNode, charIndex + line.length);
+          const rects = range.getClientRects();
+          if (rects.length > 0) {
+            results.push({
+              text: line,
+              x: rects[0].x,
+              y: rects[0].y,
+              width: rects[0].width,
+              height: rects[0].height,
+            });
+          }
+        }
+        charIndex += line.length + 1; // +1 for the newline character
+      }
+
+      return results;
+    }
+
+    // 空白を保持しない場合はテキストを正規化
+    const normalizedText = preservesWhitespace ? text : text.replace(/\s+/g, ' ').trim();
+    if (!normalizedText) return [];
     return [{
-      text: text,
+      text: normalizedText,
       x: rect.x,
       y: rect.y,
       width: rect.width,
       height: rect.height,
     }];
+  }
+
+  // lineRects.length > 1 でも、pre/code内で改行を含む場合は改行で分割
+  // （Y座標の変化検出だけでは改行が正しく検出されない場合があるため）
+  if (preservesWhitespace && text.includes('\n')) {
+    const textLines = text.split('\n');
+    const results: Array<{ text: string; x: number; y: number; width: number; height: number }> = [];
+
+    let charIndex = 0;
+    for (const line of textLines) {
+      if (line.length > 0) {
+        range.setStart(textNode, charIndex);
+        range.setEnd(textNode, charIndex + line.length);
+        const rects = range.getClientRects();
+        if (rects.length > 0) {
+          results.push({
+            text: line,
+            x: rects[0].x,
+            y: rects[0].y,
+            width: rects[0].width,
+            height: rects[0].height,
+          });
+        }
+      }
+      charIndex += line.length + 1;
+    }
+
+    return results;
   }
 
   // 各視覚的行の境界文字インデックスをバイナリサーチで特定
@@ -442,10 +676,12 @@ export function getTextLines(
   }
 
   // Y座標の変化点で行を分割
-  const lineStartIndices: number[] = [0];
-  let currentLineY = charYPositions[0];
+  // 先頭の空白をスキップして、最初の非空白文字から開始
+  const startIndex = leadingWhitespaceLength;
+  const lineStartIndices: number[] = [startIndex];
+  let currentLineY = charYPositions[startIndex] ?? charYPositions[0];
 
-  for (let i = 1; i < text.length; i++) {
+  for (let i = startIndex + 1; i < text.length; i++) {
     if (Math.abs(charYPositions[i] - currentLineY) > 5) {
       // Y座標が変化 = 新しい行の開始
       // 単語境界まで戻る（前の行の末尾のスペースを含める）
@@ -473,6 +709,32 @@ export function getTextLines(
     const end = lineStartIndices[i + 1];
     const lineText = text.slice(start, end);
 
+    // 空白を保持する場合
+    if (preservesWhitespace) {
+      // 空白を含めた元のテキストをそのまま使用（改行文字は除く - Y座標で行分割済み）
+      const preservedText = lineText.replace(/\n/g, '');
+      if (preservedText.length === 0) continue;
+
+      range.setStart(textNode, start);
+      range.setEnd(textNode, end);
+      const rects = range.getClientRects();
+
+      if (rects.length > 0) {
+        const rect = rects[0];
+        const useLineRect = i > 0 && i < lineRects.length;
+        const lineX = useLineRect ? lineRects[i].x : rect.x;
+        const lineY = useLineRect ? lineRects[i].y : rect.y;
+        lines.push({
+          text: preservedText,
+          x: lineX,
+          y: lineY,
+          width: rect.width,
+          height: rect.height,
+        });
+      }
+      continue;
+    }
+
     // ホワイトスペースを正規化（改行やタブをスペースに、連続スペースを1つに）
     const normalizedText = lineText.replace(/\s+/g, ' ').trim();
 
@@ -495,10 +757,15 @@ export function getTextLines(
     if (trimRects.length > 0) {
       // この範囲の最初の視覚的行の矩形を使用
       const rect = trimRects[0];
+      // 最初の行は実際のテキスト開始位置を使用（インライン要素の後など）
+      // 折り返された行（2行目以降）はlineRectsから位置を取得
+      const useLineRect = i > 0 && i < lineRects.length;
+      const lineX = useLineRect ? lineRects[i].x : rect.x;
+      const lineY = useLineRect ? lineRects[i].y : rect.y;
       lines.push({
         text: normalizedText,
-        x: rect.x,
-        y: rect.y,
+        x: lineX,
+        y: lineY,
         width: rect.width,
         height: rect.height,
       });
@@ -506,8 +773,10 @@ export function getTextLines(
   }
 
   if (lines.length === 0) {
+    const fallbackText = preservesWhitespace ? text : text.replace(/\s+/g, ' ').trim();
+    if (!fallbackText) return [];
     return [{
-      text: text.replace(/\s+/g, ' ').trim(),
+      text: fallbackText,
       x: allRects[0].x,
       y: allRects[0].y,
       width: allRects[0].width,
