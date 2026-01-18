@@ -10,9 +10,9 @@ export default defineConfig({
         ["meta", { property: "og:type", content: "website" }],
         ["meta", { property: "og:title", content: "carboncopy Docs - HTML to PDF クライアントライブラリ" }],
         ["meta", { property: "og:description", content: "複雑な要素を含むHTMLを正確にPDFにレンダリングするためのクライアントサイドライブラリ。位置・サイズ・スタイルを正確に再現。" }],
-        ["meta", { property: "og:image", content: "/Docs-OGP.jpg" }],
+        ["meta", { property: "og:image", content: "https://docs.carboncopy.dev/Docs-OGP.jpg" }],
         ["meta", { name: "twitter:card", content: "summary_large_image" }],
-        ["meta", { name: "twitter:image", content: "/Docs-OGP.jpg" }],
+        ["meta", { name: "twitter:image", content: "https://docs.carboncopy.dev/Docs-OGP.jpg" }],
     ],
 
     cleanUrls: true,
