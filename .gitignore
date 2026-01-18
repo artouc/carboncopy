@@ -49,7 +49,7 @@ Thumbs.db
 
 # Project specific
 /examples
-llm/
+ARCHITECTURE.md
 
 docs/.vitepress/cache
 docs/.vitepress/dist
@@ -57,5 +57,3 @@ docs/.vitepress/dist
 /ASSETS/
 
 playground/
-
-site/

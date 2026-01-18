@@ -1,0 +1,1031 @@
+# carboncopy データモデル定義
+# このファイルはプロジェクト内のすべてのデータモデル（インターフェース、型、クラス）を記載します
+# 実装が変更されたら同ファイルも必ずアップデートしてください
+
+version: "1.0.0"
+last_updated: "2026-01-18"
+
+# =============================================================================
+# API層 (api/)
+# =============================================================================
+
+api:
+  # 変換オプション
+  ConvertOptions:
+    file: packages/core/src/api/HtmlToPdf.ts
+    description: HTML→PDF変換時のオプション
+    properties:
+      format:
+        type: "PageSize | [number, number] | 'auto'"
+        description: "ページサイズ: 'A4', 'Letter', etc. または [width, height] (mm) または 'auto' (要素サイズに合わせる)"
+        optional: true
+      orientation:
+        type: "'portrait' | 'landscape'"
+        description: ページの向き (format が 'auto' の場合は無視)
+        optional: true
+      margin:
+        type: "{ top?: number; right?: number; bottom?: number; left?: number }"
+        description: マージン (mm)
+        optional: true
+      background:
+        type: boolean
+        description: 背景色を含める
+        optional: true
+      ignoreSelectors:
+        type: "string[]"
+        description: 無視する要素のセレクタ
+        optional: true
+      info:
+        type: "{ title?: string; author?: string; subject?: string }"
+        description: ドキュメント情報
+        optional: true
+      onProgress:
+        type: "(progress: number) => void"
+        description: 進捗コールバック
+        optional: true
+
+  # PDF出力結果
+  PDFResult:
+    file: packages/core/src/api/PDFResult.ts
+    description: PDF生成結果を保持し、保存・ダウンロード機能を提供するクラス
+    type: class
+    methods:
+      - "toBytes(): Uint8Array"
+      - "toBlob(): Blob"
+      - "toDataURL(): string"
+      - "download(filename: string): void"
+
+# =============================================================================
+# DOM層 (dom/)
+# =============================================================================
+
+dom:
+  # レンダリングノード型
+  RenderNodeType:
+    file: packages/core/src/dom/DOMWalker.ts
+    description: レンダリングノードの種類
+    type: union
+    values:
+      - "'element'"
+      - "'text'"
+      - "'image'"
+      - "'replaced'"
+
+  # 基本レンダリングノード
+  BaseRenderNode:
+    file: packages/core/src/dom/DOMWalker.ts
+    description: すべてのレンダリングノードの基本構造
+    properties:
+      type:
+        type: RenderNodeType
+      element:
+        type: Element
+      styles:
+        type: ExtractedStyles
+      children:
+        type: "RenderNode[]"
+      needsClipping:
+        type: boolean
+
+  # 要素ノード
+  ElementRenderNode:
+    file: packages/core/src/dom/DOMWalker.ts
+    description: HTML要素のレンダリングノード
+    extends: BaseRenderNode
+    properties:
+      type:
+        type: "'element'"
+      tagName:
+        type: string
+
+  # テキストノード
+  TextRenderNode:
+    file: packages/core/src/dom/DOMWalker.ts
+    description: テキストコンテンツのレンダリングノード
+    properties:
+      type:
+        type: "'text'"
+      parentElement:
+        type: Element
+      textContent:
+        type: string
+      x:
+        type: number
+        description: ピクセル単位
+      y:
+        type: number
+        description: ピクセル単位
+      width:
+        type: number
+        description: ピクセル単位
+      height:
+        type: number
+        description: ピクセル単位
+      font:
+        type: "{ family: string; size: number; weight: number; style: 'normal' | 'italic' | 'oblique'; lineHeight: number }"
+      color:
+        type: "RGBAColor | null"
+
+  # 画像ノード
+  ImageRenderNode:
+    file: packages/core/src/dom/DOMWalker.ts
+    description: 画像要素のレンダリングノード
+    extends: BaseRenderNode
+    properties:
+      type:
+        type: "'image'"
+      src:
+        type: string
+      naturalWidth:
+        type: number
+      naturalHeight:
+        type: number
+
+  # 置換要素ノード
+  ReplacedRenderNode:
+    file: packages/core/src/dom/DOMWalker.ts
+    description: 置換要素（canvas, video等）のレンダリングノード
+    extends: BaseRenderNode
+    properties:
+      type:
+        type: "'replaced'"
+      tagName:
+        type: string
+
+  # レンダリングノードユニオン型
+  RenderNode:
+    file: packages/core/src/dom/DOMWalker.ts
+    description: すべてのレンダリングノード型のユニオン
+    type: union
+    values:
+      - ElementRenderNode
+      - TextRenderNode
+      - ImageRenderNode
+      - ReplacedRenderNode
+
+  # DOM走査オプション
+  WalkOptions:
+    file: packages/core/src/dom/DOMWalker.ts
+    description: DOM走査時のオプション
+    properties:
+      offsetX:
+        type: number
+        description: ルート要素の位置オフセット
+        optional: true
+      offsetY:
+        type: number
+        optional: true
+      ignoreSelectors:
+        type: "string[]"
+        description: 無視する要素のセレクタ
+        optional: true
+      includeImages:
+        type: boolean
+        description: 画像を含めるかどうか
+        optional: true
+
+  # ボックスモデル情報
+  BoxModel:
+    file: packages/core/src/dom/StyleExtractor.ts
+    description: CSSボックスモデルの詳細情報
+    properties:
+      contentX:
+        type: number
+        description: Content box X座標 (px)
+      contentY:
+        type: number
+      contentWidth:
+        type: number
+      contentHeight:
+        type: number
+      paddingTop:
+        type: number
+      paddingRight:
+        type: number
+      paddingBottom:
+        type: number
+      paddingLeft:
+        type: number
+      borderX:
+        type: number
+        description: Border box X座標 (px)
+      borderY:
+        type: number
+      borderWidth:
+        type: number
+      borderHeight:
+        type: number
+      borderTopWidth:
+        type: number
+      borderRightWidth:
+        type: number
+      borderBottomWidth:
+        type: number
+      borderLeftWidth:
+        type: number
+      marginTop:
+        type: number
+      marginRight:
+        type: number
+      marginBottom:
+        type: number
+      marginLeft:
+        type: number
+
+  # フォント情報
+  FontInfo:
+    file: packages/core/src/dom/StyleExtractor.ts
+    description: CSSから抽出されたフォント情報
+    properties:
+      family:
+        type: string
+      size:
+        type: number
+        description: ピクセル単位
+      weight:
+        type: number
+        description: 100-900
+      style:
+        type: "'normal' | 'italic' | 'oblique'"
+      lineHeight:
+        type: number
+        description: ピクセル単位（計算済み）
+      letterSpacing:
+        type: number
+        description: ピクセル単位
+
+  # 境界線情報
+  BorderInfo:
+    file: packages/core/src/dom/StyleExtractor.ts
+    description: 4辺の境界線情報
+    properties:
+      top:
+        type: BorderSide
+      right:
+        type: BorderSide
+      bottom:
+        type: BorderSide
+      left:
+        type: BorderSide
+
+  BorderSide:
+    file: packages/core/src/dom/StyleExtractor.ts
+    description: 1辺の境界線情報
+    properties:
+      width:
+        type: number
+        description: ピクセル単位
+      style:
+        type: string
+      color:
+        type: "RGBAColor | null"
+
+  # 抽出されたスタイル全体
+  ExtractedStyles:
+    file: packages/core/src/dom/StyleExtractor.ts
+    description: getComputedStyleとgetBoundingClientRectから抽出された全スタイル情報
+    properties:
+      box:
+        type: BoxModel
+      backgroundColor:
+        type: "RGBAColor | null"
+      backgroundImage:
+        type: "string | null"
+      border:
+        type: BorderInfo
+      borderRadius:
+        type: "{ topLeft: number; topRight: number; bottomRight: number; bottomLeft: number }"
+      font:
+        type: FontInfo
+      color:
+        type: "RGBAColor | null"
+      textAlign:
+        type: string
+      textDecoration:
+        type: string
+      verticalAlign:
+        type: string
+      whiteSpace:
+        type: string
+      display:
+        type: string
+      visibility:
+        type: string
+      opacity:
+        type: number
+      overflow:
+        type: string
+      overflowX:
+        type: string
+      overflowY:
+        type: string
+      transform:
+        type: "DOMMatrix | null"
+      zIndex:
+        type: "number | 'auto'"
+      position:
+        type: string
+      boxShadow:
+        type: "string | null"
+
+# =============================================================================
+# PDF層 (pdf/)
+# =============================================================================
+
+pdf:
+  # ページサイズ
+  PageSize:
+    file: packages/core/src/pdf/PDFPage.ts
+    description: ページの幅と高さ
+    properties:
+      width:
+        type: number
+        description: ポイント単位
+      height:
+        type: number
+        description: ポイント単位
+
+  # テキスト描画オプション
+  DrawTextOptions:
+    file: packages/core/src/pdf/PDFPage.ts
+    description: テキスト描画時のオプション
+    properties:
+      font:
+        type: string
+      fontSize:
+        type: number
+      color:
+        type: RGBColor
+        optional: true
+      targetWidth:
+        type: number
+        description: ターゲット幅（pt）。指定すると文字間隔で調整
+        optional: true
+      pdfWidth:
+        type: number
+        description: PDF計算上の幅（pt）。targetWidthと共に使用
+        optional: true
+
+  # 線描画オプション
+  DrawLineOptions:
+    file: packages/core/src/pdf/PDFPage.ts
+    description: 線描画時のオプション
+    properties:
+      color:
+        type: RGBColor
+        optional: true
+      width:
+        type: number
+        optional: true
+
+  # 矩形描画オプション
+  DrawRectOptions:
+    file: packages/core/src/pdf/PDFPage.ts
+    description: 矩形描画時のオプション
+    properties:
+      fill:
+        type: RGBColor
+        optional: true
+      stroke:
+        type: RGBColor
+        optional: true
+      lineWidth:
+        type: number
+        optional: true
+
+  # PDF色
+  RGBColor:
+    file: packages/core/src/pdf/PDFContentStream.ts
+    description: RGB色（0-1正規化）
+    properties:
+      r:
+        type: number
+        description: 0-1
+      g:
+        type: number
+      b:
+        type: number
+
+  # PDFドキュメント情報
+  DocumentInfo:
+    file: packages/core/src/pdf/PDFDocument.ts
+    description: PDFメタデータ
+    properties:
+      title:
+        type: string
+        optional: true
+      author:
+        type: string
+        optional: true
+      subject:
+        type: string
+        optional: true
+      creator:
+        type: string
+        optional: true
+      producer:
+        type: string
+        optional: true
+
+  # フォント情報（PDFDocument内）
+  FontInfo_PDF:
+    file: packages/core/src/pdf/PDFDocument.ts
+    description: PDFドキュメント内のフォント情報
+    properties:
+      ref:
+        type: PDFRef
+      name:
+        type: string
+      isCID:
+        type: boolean
+        description: CIDフォントの場合true
+        optional: true
+      loadedFont:
+        type: LoadedFont
+        description: 元のLoadedFont（CIDフォントの場合）
+        optional: true
+
+  # 画像情報
+  ImageInfo:
+    file: packages/core/src/pdf/PDFDocument.ts
+    description: PDFドキュメント内の画像情報
+    properties:
+      ref:
+        type: PDFRef
+      name:
+        type: string
+      width:
+        type: number
+      height:
+        type: number
+
+  # PDFクラス
+  PDFPage:
+    file: packages/core/src/pdf/PDFPage.ts
+    description: PDFページの管理クラス
+    type: class
+    methods:
+      - "addFont(name: string, ref: PDFRef): void"
+      - "addImage(name: string, ref: PDFRef): void"
+      - "drawText(text: string, x: number, y: number, options: DrawTextOptions): void"
+      - "drawTextUnicode(text: string, x: number, y: number, options: DrawTextOptions): void"
+      - "drawTextCID(hexText: string, x: number, y: number, options: DrawTextOptions): void"
+      - "drawLine(x1: number, y1: number, x2: number, y2: number, options?: DrawLineOptions): void"
+      - "drawRect(x: number, y: number, width: number, height: number, options?: DrawRectOptions): void"
+      - "drawImage(imageName: string, x: number, y: number, width: number, height: number): void"
+      - "setClipRect(x: number, y: number, width: number, height: number): void"
+      - "saveState(): void"
+      - "restoreState(): void"
+
+  PDFDocument:
+    file: packages/core/src/pdf/PDFDocument.ts
+    description: PDFドキュメント全体の管理クラス
+    type: class
+    methods:
+      - "setInfo(info: DocumentInfo): void"
+      - "addPage(width: number, height: number): PDFPage"
+      - "addStandardFont(name: string, baseFont: string): FontInfo"
+      - "addCustomFont(name: string, loadedFont: LoadedFont, usedText?: string): FontInfo"
+      - "applyFontToPage(page: PDFPage, fontName: string): void"
+      - "getFontInfo(fontName: string): FontInfo | undefined"
+      - "textToHex(fontName: string, text: string): string | null"
+      - "addImage(name: string, ref: PDFRef, width: number, height: number): ImageInfo"
+      - "save(): Uint8Array"
+
+  PDFContentStream:
+    file: packages/core/src/pdf/PDFContentStream.ts
+    description: PDF描画命令を生成するクラス
+    type: class
+
+# =============================================================================
+# PDFオブジェクト型 (pdf/objects/)
+# =============================================================================
+
+pdf_objects:
+  # PDFオブジェクト基底型
+  PDFObjectValue:
+    file: packages/core/src/pdf/objects/PDFObject.ts
+    description: すべてのPDFオブジェクトのユニオン型
+    type: union
+    values:
+      - PDFNull
+      - PDFBoolean
+      - PDFNumber
+      - PDFString
+      - PDFHexString
+      - PDFName
+      - PDFArray
+      - PDFDict
+      - PDFRef
+      - PDFStream
+
+  PDFNull:
+    file: packages/core/src/pdf/objects/PDFObject.ts
+    description: PDF null オブジェクト
+    type: class
+
+  PDFBoolean:
+    file: packages/core/src/pdf/objects/PDFObject.ts
+    description: PDF boolean オブジェクト
+    type: class
+    properties:
+      value:
+        type: boolean
+
+  PDFNumber:
+    file: packages/core/src/pdf/objects/PDFObject.ts
+    description: PDF 数値オブジェクト（整数/実数）
+    type: class
+    properties:
+      value:
+        type: number
+
+  PDFString:
+    file: packages/core/src/pdf/objects/PDFObject.ts
+    description: PDF 文字列オブジェクト（リテラル形式）
+    type: class
+    properties:
+      value:
+        type: string
+
+  PDFHexString:
+    file: packages/core/src/pdf/objects/PDFObject.ts
+    description: PDF 16進数文字列オブジェクト
+    type: class
+    properties:
+      data:
+        type: Uint8Array
+
+  PDFName:
+    file: packages/core/src/pdf/objects/PDFObject.ts
+    description: PDF 名前オブジェクト
+    type: class
+    properties:
+      value:
+        type: string
+
+  PDFArray:
+    file: packages/core/src/pdf/objects/PDFObject.ts
+    description: PDF 配列オブジェクト
+    type: class
+    properties:
+      items:
+        type: "PDFObjectValue[]"
+
+  PDFDict:
+    file: packages/core/src/pdf/objects/PDFObject.ts
+    description: PDF 辞書オブジェクト
+    type: class
+    methods:
+      - "set(key: string, value: PDFObjectValue): void"
+      - "get(key: string): PDFObjectValue | undefined"
+      - "has(key: string): boolean"
+      - "delete(key: string): boolean"
+
+  PDFRef:
+    file: packages/core/src/pdf/objects/PDFObject.ts
+    description: PDF 間接参照
+    type: class
+    properties:
+      objectNumber:
+        type: number
+      generationNumber:
+        type: number
+        default: 0
+
+  PDFStream:
+    file: packages/core/src/pdf/objects/PDFObject.ts
+    description: PDF ストリームオブジェクト
+    type: class
+    properties:
+      dict:
+        type: PDFDict
+      data:
+        type: Uint8Array
+
+  PDFIndirectObject:
+    file: packages/core/src/pdf/objects/PDFObject.ts
+    description: PDF 間接オブジェクト
+    type: class
+    properties:
+      objectNumber:
+        type: number
+      generationNumber:
+        type: number
+      value:
+        type: PDFObjectValue
+
+# =============================================================================
+# フォント層 (fonts/)
+# =============================================================================
+
+fonts:
+  # 読み込まれたフォント
+  LoadedFont:
+    file: packages/core/src/fonts/FontManager.ts
+    description: 読み込み・パース済みのフォント情報
+    properties:
+      name:
+        type: string
+        description: フォント名
+      postScriptName:
+        type: string
+        description: PostScript名
+      family:
+        type: string
+        description: フォントファミリー
+      weight:
+        type: number
+        description: ウェイト (100-900)
+      style:
+        type: "'normal' | 'italic'"
+        description: スタイル
+      otFont:
+        type: "opentype.Font"
+        description: opentype.js Font オブジェクト
+      data:
+        type: Uint8Array
+        description: 元のフォントデータ
+      usedCodePoints:
+        type: "Set<number>"
+        description: 使用されている文字コードポイント
+
+  # フォントメトリクス
+  FontMetrics:
+    file: packages/core/src/fonts/FontManager.ts
+    description: フォントの計測情報
+    properties:
+      unitsPerEm:
+        type: number
+      ascender:
+        type: number
+      descender:
+        type: number
+      lineGap:
+        type: number
+
+  # フォント埋め込み結果
+  EmbeddedFont:
+    file: packages/core/src/fonts/FontEmbedder.ts
+    description: フォント埋め込み結果
+    properties:
+      ref:
+        type: PDFRef
+        description: フォント辞書への参照
+      objects:
+        type: "PDFIndirectObject[]"
+        description: 生成されたPDFオブジェクト
+      pdfName:
+        type: string
+        description: フォント名（PDF内での参照名）
+
+  # フォント埋め込みコンテキスト
+  EmbedContext:
+    file: packages/core/src/fonts/FontEmbedder.ts
+    description: フォント埋め込み時のコンテキスト
+    properties:
+      nextObjectNumber:
+        type: number
+      registerObject:
+        type: "(obj: PDFIndirectObject) => void"
+
+  # 標準フォント名
+  StandardFontName:
+    file: packages/core/src/fonts/StandardFonts.ts
+    description: PDF標準14フォントの名前
+    type: union
+    values:
+      - "'Helvetica'"
+      - "'Helvetica-Bold'"
+      - "'Helvetica-Oblique'"
+      - "'Helvetica-BoldOblique'"
+      - "'Times-Roman'"
+      - "'Times-Bold'"
+      - "'Times-Italic'"
+      - "'Times-BoldItalic'"
+      - "'Courier'"
+      - "'Courier-Bold'"
+      - "'Courier-Oblique'"
+      - "'Courier-BoldOblique'"
+
+  # フォントタイプ
+  FontType:
+    file: packages/core/src/fonts/StandardFonts.ts
+    description: フォントの分類
+    type: union
+    values:
+      - "'serif'"
+      - "'sans-serif'"
+      - "'monospace'"
+
+  # フォントマネージャー
+  FontManager:
+    file: packages/core/src/fonts/FontManager.ts
+    description: フォントの読み込み・管理クラス
+    type: class
+    methods:
+      - "loadFromURL(url: string, name?: string): Promise<LoadedFont>"
+      - "loadFromArrayBuffer(buffer: ArrayBuffer, name?: string): Promise<LoadedFont>"
+      - "loadFromUint8Array(data: Uint8Array, name?: string): Promise<LoadedFont>"
+      - "getFont(name: string): LoadedFont | undefined"
+      - "findFont(family: string, weight?: number, style?: 'normal' | 'italic'): LoadedFont | undefined"
+      - "hasFont(name: string): boolean"
+      - "markGlyphsAsUsed(fontName: string, text: string): void"
+      - "getMetrics(fontName: string): FontMetrics | undefined"
+      - "measureText(fontName: string, text: string, fontSize: number): number"
+
+# =============================================================================
+# レンダラー層 (renderers/)
+# =============================================================================
+
+renderers:
+  # フォントマッピング
+  FontMapping:
+    file: packages/core/src/renderers/TextRenderer.ts
+    description: CSSフォントからPDFフォントへのマッピング
+    properties:
+      pdfName:
+        type: string
+        description: PDFフォント名（F1, F2, ...）
+      baseFontName:
+        type: string
+        description: 標準フォント名またはカスタムフォント名
+      cssFamily:
+        type: string
+        description: CSSフォントファミリー
+      weight:
+        type: number
+        description: フォントウェイト
+      style:
+        type: "'normal' | 'italic' | 'oblique'"
+        description: フォントスタイル
+
+  # テキストレンダリングコンテキスト
+  TextRenderContext:
+    file: packages/core/src/renderers/TextRenderer.ts
+    description: テキスト描画時のコンテキスト
+    properties:
+      page:
+        type: PDFPage
+      converter:
+        type: UnitConverter
+      fontMappings:
+        type: "Map<string, FontMapping>"
+      nextFontId:
+        type: number
+
+  # テーブルセル
+  TableCell:
+    file: packages/core/src/renderers/TableRenderer.ts
+    description: テーブルセルの情報
+    properties:
+      element:
+        type: HTMLTableCellElement
+      row:
+        type: number
+      col:
+        type: number
+      rowSpan:
+        type: number
+      colSpan:
+        type: number
+      rect:
+        type: DOMRect
+      styles:
+        type: ExtractedStyles
+
+  # テーブル描画オプション
+  TableRenderOptions:
+    file: packages/core/src/renderers/TableRenderer.ts
+    description: テーブル描画時のオプション
+    properties:
+      drawBorders:
+        type: boolean
+        description: 境界線を描画するか
+        optional: true
+      drawBackgrounds:
+        type: boolean
+        description: 背景を描画するか
+        optional: true
+
+  # リストスタイルタイプ
+  ListStyleType:
+    file: packages/core/src/renderers/ListRenderer.ts
+    description: リストマーカーのスタイル
+    type: union
+    values:
+      - "'disc'"
+      - "'circle'"
+      - "'square'"
+      - "'decimal'"
+      - "'decimal-leading-zero'"
+      - "'lower-roman'"
+      - "'upper-roman'"
+      - "'lower-alpha'"
+      - "'upper-alpha'"
+      - "'lower-latin'"
+      - "'upper-latin'"
+      - "'none'"
+
+  # リストアイテム情報
+  ListItemInfo:
+    file: packages/core/src/renderers/ListRenderer.ts
+    description: リストアイテムの情報
+    properties:
+      element:
+        type: HTMLLIElement
+      index:
+        type: number
+      listStyleType:
+        type: ListStyleType
+      rect:
+        type: DOMRect
+      styles:
+        type: ExtractedStyles
+
+  # 埋め込み画像
+  EmbeddedImage:
+    file: packages/core/src/renderers/ImageRenderer.ts
+    description: PDF埋め込み画像の情報
+    properties:
+      ref:
+        type: PDFRef
+        description: 画像XObjectへの参照
+      name:
+        type: string
+        description: XObject名
+      width:
+        type: number
+        description: 画像幅（ピクセル）
+      height:
+        type: number
+        description: 画像高さ（ピクセル）
+
+  # 画像埋め込みコンテキスト
+  ImageEmbedContext:
+    file: packages/core/src/renderers/ImageRenderer.ts
+    description: 画像埋め込み時のコンテキスト
+    properties:
+      nextObjectNumber:
+        type: number
+      registerObject:
+        type: "(obj: PDFIndirectObject) => void"
+      existingImages:
+        type: "Map<string, EmbeddedImage>"
+
+  # 画像タイプ
+  ImageType:
+    file: packages/core/src/renderers/ImageRenderer.ts
+    description: サポートされる画像形式
+    type: union
+    values:
+      - "'jpeg'"
+      - "'png'"
+      - "'unknown'"
+
+# =============================================================================
+# ユーティリティ層 (utils/)
+# =============================================================================
+
+utils:
+  # ページサイズ（定数）
+  PAGE_SIZES:
+    file: packages/core/src/utils/UnitConverter.ts
+    description: 標準ページサイズ定義（単位: pt）
+    type: constant
+    values:
+      A4:
+        width: 595.28
+        height: 841.89
+      A3:
+        width: 841.89
+        height: 1190.55
+      A5:
+        width: 419.53
+        height: 595.28
+      Letter:
+        width: 612
+        height: 792
+      Legal:
+        width: 612
+        height: 1008
+
+  # ページサイズ型
+  PageSize_Utils:
+    file: packages/core/src/utils/UnitConverter.ts
+    description: ページサイズキー
+    type: union
+    values:
+      - "'A4'"
+      - "'A3'"
+      - "'A5'"
+      - "'Letter'"
+      - "'Legal'"
+
+  # ページ寸法
+  PageDimensions:
+    file: packages/core/src/utils/UnitConverter.ts
+    description: ページの幅と高さ（pt単位）
+    properties:
+      width:
+        type: number
+        description: ポイント単位
+      height:
+        type: number
+        description: ポイント単位
+
+  # マージン
+  Margins:
+    file: packages/core/src/utils/UnitConverter.ts
+    description: ページマージン（mm単位）
+    properties:
+      top:
+        type: number
+      right:
+        type: number
+      bottom:
+        type: number
+      left:
+        type: number
+
+  # 単位変換器
+  UnitConverter:
+    file: packages/core/src/utils/UnitConverter.ts
+    description: CSS px ↔ PDF pt の高精度変換クラス
+    type: class
+    constants:
+      CSS_DPI: 96
+      PDF_DPI: 72
+      PX_TO_PT_RATIO: 0.75
+    methods:
+      - "pxToPt(px: number): number"
+      - "ptToPx(pt: number): number"
+      - "mmToPt(mm: number): number"
+      - "ptToMm(pt: number): number"
+      - "convertX(cssX: number): number"
+      - "convertY(cssY: number, height?: number): number"
+      - "convertRect(rect: { x: number; y: number; width: number; height: number }): { x: number; y: number; width: number; height: number }"
+      - "convertFontSize(cssPx: number): number"
+      - "convertLineWidth(cssPx: number): number"
+      - "setPageOffset(x: number, y: number): void"
+
+  # RGBA色
+  RGBAColor:
+    file: packages/core/src/utils/ColorParser.ts
+    description: RGBA色（0-1正規化）
+    properties:
+      r:
+        type: number
+        description: 0-1
+      g:
+        type: number
+        description: 0-1
+      b:
+        type: number
+        description: 0-1
+      a:
+        type: number
+        description: 0-1
+
+  # グラデーションカラーストップ
+  GradientColorStop:
+    file: packages/core/src/utils/ColorParser.ts
+    description: グラデーションのカラーストップ
+    properties:
+      color:
+        type: RGBAColor
+      position:
+        type: number
+        description: 0-1
+
+  # 線形グラデーション
+  LinearGradient:
+    file: packages/core/src/utils/ColorParser.ts
+    description: 線形グラデーション情報
+    properties:
+      type:
+        type: "'linear'"
+      angle:
+        type: number
+        description: 角度（0 = to top, 90 = to right）
+      colorStops:
+        type: "GradientColorStop[]"
+
+  # 放射状グラデーション
+  RadialGradient:
+    file: packages/core/src/utils/ColorParser.ts
+    description: 放射状グラデーション情報
+    properties:
+      type:
+        type: "'radial'"
+      colorStops:
+        type: "GradientColorStop[]"
+
+  # パース済みグラデーション
+  ParsedGradient:
+    file: packages/core/src/utils/ColorParser.ts
+    description: パース済みグラデーションのユニオン型
+    type: union
+    values:
+      - LinearGradient
+      - RadialGradient
