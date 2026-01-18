@@ -64,20 +64,30 @@ export function renderText(
   const pdfY = converter.convertY(y + baselineOffset, 0);
   const pdfFontSize = converter.convertFontSize(font.size);
 
-  // フォント幅計算（PDF標準フォントの幅）
+  // フォントタイプを判定
   const fontType = getFontType(font.family);
-  const pdfWidth = measureTextWidth(textContent, pdfFontSize, fontType);
-  // ブラウザで測定した幅をPDF単位に変換
-  const targetWidth = converter.pxToPt(width);
 
-  // テキストを描画（幅調整付き）
-  page.drawText(textContent, pdfX, pdfY, {
-    font: fontMapping.pdfName,
-    fontSize: pdfFontSize,
-    color: color ? { r: color.r, g: color.g, b: color.b } : undefined,
-    targetWidth,
-    pdfWidth,
-  });
+  // monospaceフォントの場合のみ文字間隔調整を適用
+  // （ブラウザのmonospaceフォントとPDFのCourierで文字幅が異なるため）
+  if (fontType === "monospace") {
+    const pdfWidth = measureTextWidth(textContent, pdfFontSize, fontType);
+    const targetWidth = converter.pxToPt(width);
+
+    page.drawText(textContent, pdfX, pdfY, {
+      font: fontMapping.pdfName,
+      fontSize: pdfFontSize,
+      color: color ? { r: color.r, g: color.g, b: color.b } : undefined,
+      targetWidth,
+      pdfWidth,
+    });
+  } else {
+    // serif/sans-serifは調整なしで描画
+    page.drawText(textContent, pdfX, pdfY, {
+      font: fontMapping.pdfName,
+      fontSize: pdfFontSize,
+      color: color ? { r: color.r, g: color.g, b: color.b } : undefined,
+    });
+  }
 }
 
 /**
