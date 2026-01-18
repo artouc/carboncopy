@@ -78,33 +78,35 @@ export class PDFPage {
       this.contents.setFillColorRGB(color.r, color.g, color.b);
     }
 
-    // 水平スケーリングを計算
-    let scaleX = 1;
-    if (targetWidth && pdfWidth && pdfWidth > 0) {
-      scaleX = targetWidth / pdfWidth;
-      // 極端なスケーリングは避ける（0.5〜2.0の範囲に制限）
-      scaleX = Math.max(0.5, Math.min(2.0, scaleX));
-    }
-
-    // スケーリングが必要な場合はテキスト行列を使用
-    if (scaleX !== 1) {
-      // フォント設定
+    // フォント設定
+    if (this.currentFont !== font || this.currentFontSize !== fontSize) {
       this.contents.setFont(font, fontSize);
       this.currentFont = font;
       this.currentFontSize = fontSize;
-      // テキスト行列: [scaleX 0 0 1 x y]
-      this.contents.setTextMatrix(scaleX, 0, 0, 1, x, y);
-      this.contents.showText(text);
-    } else {
-      // フォント設定（前回と異なる場合のみ）
-      if (this.currentFont !== font || this.currentFontSize !== fontSize) {
-        this.contents.setFont(font, fontSize);
-        this.currentFont = font;
-        this.currentFontSize = fontSize;
-      }
-      // 位置とテキスト
-      this.contents.moveText(x, y);
-      this.contents.showText(text);
+    }
+
+    // 文字間隔調整を計算（文字の形を維持しながら幅を調整）
+    let charSpacing = 0;
+    if (targetWidth && pdfWidth && pdfWidth > 0 && text.length > 1) {
+      const widthDiff = targetWidth - pdfWidth;
+      // 文字間隔 = 幅の差分 / (文字数 - 1)
+      charSpacing = widthDiff / (text.length - 1);
+      // 極端な調整は避ける（-2pt〜+2pt程度に制限）
+      charSpacing = Math.max(-2, Math.min(2, charSpacing));
+    }
+
+    // 文字間隔が必要な場合は設定
+    if (charSpacing !== 0) {
+      this.contents.setCharacterSpacing(charSpacing);
+    }
+
+    // 位置とテキスト
+    this.contents.moveText(x, y);
+    this.contents.showText(text);
+
+    // 文字間隔をリセット
+    if (charSpacing !== 0) {
+      this.contents.setCharacterSpacing(0);
     }
 
     this.contents.endText();
