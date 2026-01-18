@@ -27,6 +27,7 @@ export default defineConfig({
             { text: "ガイド", link: "/guide/" },
             { text: "API", link: "/api/" },
             { text: "Examples", link: "/examples/" },
+            { text: "Changelog", link: "/changelog" },
         ],
 
         sidebar: {
