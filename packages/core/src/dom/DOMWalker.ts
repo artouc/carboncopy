@@ -425,25 +425,32 @@ export function sortByZIndex(nodes: RenderNode[]): RenderNode[] {
 }
 
 /**
- * 要素が空白を保持するかどうかを確認
- * 祖先要素を辿って pre, code タグまたは white-space: pre* を持つ要素を探す
+ * 要素が pre または code タグ内にあるかどうかを確認
  */
-function checkPreservesWhitespace(element: Element): boolean {
+function isInsidePreOrCode(element: Element): boolean {
   let current: Element | null = element;
   while (current) {
-    // pre または code タグ内は空白を保持
     if (current.tagName === 'PRE' || current.tagName === 'CODE') {
-      return true;
-    }
-    // computed style で white-space を確認
-    const style = window.getComputedStyle(current);
-    const whiteSpace = style.whiteSpace;
-    if (whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'pre-line') {
       return true;
     }
     current = current.parentElement;
   }
   return false;
+}
+
+/**
+ * 要素が空白を保持するかどうかを確認
+ * 祖先要素を辿って pre, code タグまたは white-space: pre* を持つ要素を探す
+ */
+function checkPreservesWhitespace(element: Element): boolean {
+  // pre/code タグ内は常に空白を保持
+  if (isInsidePreOrCode(element)) {
+    return true;
+  }
+  // computed style で white-space を確認
+  const style = window.getComputedStyle(element);
+  const whiteSpace = style.whiteSpace;
+  return whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'pre-line';
 }
 
 /**
@@ -481,8 +488,41 @@ export function getTextLines(
   range.selectNodeContents(textNode);
   const allRects = range.getClientRects();
 
+  // DEBUG: テキストノードの処理状況を出力
+  if (preservesWhitespace && text.includes('\n')) {
+    console.log('[DOMWalker DEBUG] pre/code text with newline:', JSON.stringify(text), 'allRects.length:', allRects.length);
+  }
+
   // 矩形がない場合
   if (allRects.length === 0) {
+    // pre/code内で改行を含むテキストは、改行で分割して処理
+    if (preservesWhitespace && text.includes('\n')) {
+      const textLines = text.split('\n');
+      const results: Array<{ text: string; x: number; y: number; width: number; height: number }> = [];
+
+      let charIndex = 0;
+      for (const line of textLines) {
+        if (line.length > 0) {
+          // この行の範囲を取得して矩形を得る
+          range.setStart(textNode, charIndex);
+          range.setEnd(textNode, charIndex + line.length);
+          const lineRects = range.getClientRects();
+          if (lineRects.length > 0) {
+            console.log('[DOMWalker DEBUG] allRects=0, split line:', JSON.stringify(line), 'y:', lineRects[0].y);
+            results.push({
+              text: line,
+              x: lineRects[0].x,
+              y: lineRects[0].y,
+              width: lineRects[0].width,
+              height: lineRects[0].height,
+            });
+          }
+        }
+        charIndex += line.length + 1; // +1 for the newline character
+      }
+
+      return results;
+    }
     return [];
   }
 
@@ -490,31 +530,28 @@ export function getTextLines(
   if (allRects.length === 1) {
     // 空白を保持する場合で改行を含むテキストは、改行で分割する
     if (preservesWhitespace && text.includes('\n')) {
-      const rect = allRects[0];
       const textLines = text.split('\n');
-      // 非空行のみカウントしてline heightを推定
-      const nonEmptyLines = textLines.filter(l => l.length > 0);
-      const lineHeight = rect.height / Math.max(nonEmptyLines.length, 1);
-
       const results: Array<{ text: string; x: number; y: number; width: number; height: number }> = [];
-      let currentY = rect.y;
-      let hasOutputLine = false;
 
+      let charIndex = 0;
       for (const line of textLines) {
         if (line.length > 0) {
-          results.push({
-            text: line,
-            x: rect.x,
-            y: currentY,
-            width: rect.width,
-            height: lineHeight,
-          });
-          hasOutputLine = true;
+          // この行の範囲を取得して矩形を得る
+          range.setStart(textNode, charIndex);
+          range.setEnd(textNode, charIndex + line.length);
+          const lineRects = range.getClientRects();
+          if (lineRects.length > 0) {
+            console.log('[DOMWalker DEBUG] allRects=1, split line:', JSON.stringify(line), 'y:', lineRects[0].y);
+            results.push({
+              text: line,
+              x: lineRects[0].x,
+              y: lineRects[0].y,
+              width: lineRects[0].width,
+              height: lineRects[0].height,
+            });
+          }
         }
-        // 最初の行を出力した後のみY座標を進める
-        if (hasOutputLine) {
-          currentY += lineHeight;
-        }
+        charIndex += line.length + 1; // +1 for the newline character
       }
 
       return results;
@@ -548,30 +585,29 @@ export function getTextLines(
 
     // 空白を保持する場合で改行を含むテキストは、改行で分割する
     if (preservesWhitespace && text.includes('\n')) {
+      console.log('[DOMWalker DEBUG] lineRects<=1, splitting by newline:', JSON.stringify(text));
       const textLines = text.split('\n');
-      // 非空行のみカウントしてline heightを推定
-      const nonEmptyLines = textLines.filter(l => l.length > 0);
-      const lineHeight = rect.height / Math.max(nonEmptyLines.length, 1);
-
       const results: Array<{ text: string; x: number; y: number; width: number; height: number }> = [];
-      let currentY = rect.y;
-      let hasOutputLine = false;
 
+      let charIndex = 0;
       for (const line of textLines) {
         if (line.length > 0) {
-          results.push({
-            text: line,
-            x: rect.x,
-            y: currentY,
-            width: rect.width,
-            height: lineHeight,
-          });
-          hasOutputLine = true;
+          // この行の範囲を取得して矩形を得る
+          range.setStart(textNode, charIndex);
+          range.setEnd(textNode, charIndex + line.length);
+          const rects = range.getClientRects();
+          if (rects.length > 0) {
+            console.log('[DOMWalker DEBUG] lineRects<=1, split line:', JSON.stringify(line), 'y:', rects[0].y);
+            results.push({
+              text: line,
+              x: rects[0].x,
+              y: rects[0].y,
+              width: rects[0].width,
+              height: rects[0].height,
+            });
+          }
         }
-        // 最初の行を出力した後のみY座標を進める
-        if (hasOutputLine) {
-          currentY += lineHeight;
-        }
+        charIndex += line.length + 1; // +1 for the newline character
       }
 
       return results;
@@ -587,6 +623,36 @@ export function getTextLines(
       width: rect.width,
       height: rect.height,
     }];
+  }
+
+  // lineRects.length > 1 でも、pre/code内で改行を含む場合は改行で分割
+  // （Y座標の変化検出だけでは改行が正しく検出されない場合があるため）
+  if (preservesWhitespace && text.includes('\n')) {
+    console.log('[DOMWalker DEBUG] lineRects>1 but has newline, forcing split by newline:', JSON.stringify(text));
+    const textLines = text.split('\n');
+    const results: Array<{ text: string; x: number; y: number; width: number; height: number }> = [];
+
+    let charIndex = 0;
+    for (const line of textLines) {
+      if (line.length > 0) {
+        range.setStart(textNode, charIndex);
+        range.setEnd(textNode, charIndex + line.length);
+        const rects = range.getClientRects();
+        if (rects.length > 0) {
+          console.log('[DOMWalker DEBUG] lineRects>1, split line:', JSON.stringify(line), 'y:', rects[0].y);
+          results.push({
+            text: line,
+            x: rects[0].x,
+            y: rects[0].y,
+            width: rects[0].width,
+            height: rects[0].height,
+          });
+        }
+      }
+      charIndex += line.length + 1;
+    }
+
+    return results;
   }
 
   // 各視覚的行の境界文字インデックスをバイナリサーチで特定
