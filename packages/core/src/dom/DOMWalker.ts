@@ -488,11 +488,6 @@ export function getTextLines(
   range.selectNodeContents(textNode);
   const allRects = range.getClientRects();
 
-  // DEBUG: テキストノードの処理状況を出力
-  if (preservesWhitespace && text.includes('\n')) {
-    console.log('[DOMWalker DEBUG] pre/code text with newline:', JSON.stringify(text), 'allRects.length:', allRects.length);
-  }
-
   // 矩形がない場合
   if (allRects.length === 0) {
     // pre/code内で改行を含むテキストは、改行で分割して処理
@@ -508,7 +503,6 @@ export function getTextLines(
           range.setEnd(textNode, charIndex + line.length);
           const lineRects = range.getClientRects();
           if (lineRects.length > 0) {
-            console.log('[DOMWalker DEBUG] allRects=0, split line:', JSON.stringify(line), 'y:', lineRects[0].y);
             results.push({
               text: line,
               x: lineRects[0].x,
@@ -541,7 +535,6 @@ export function getTextLines(
           range.setEnd(textNode, charIndex + line.length);
           const lineRects = range.getClientRects();
           if (lineRects.length > 0) {
-            console.log('[DOMWalker DEBUG] allRects=1, split line:', JSON.stringify(line), 'y:', lineRects[0].y);
             results.push({
               text: line,
               x: lineRects[0].x,
@@ -585,7 +578,6 @@ export function getTextLines(
 
     // 空白を保持する場合で改行を含むテキストは、改行で分割する
     if (preservesWhitespace && text.includes('\n')) {
-      console.log('[DOMWalker DEBUG] lineRects<=1, splitting by newline:', JSON.stringify(text));
       const textLines = text.split('\n');
       const results: Array<{ text: string; x: number; y: number; width: number; height: number }> = [];
 
@@ -597,7 +589,6 @@ export function getTextLines(
           range.setEnd(textNode, charIndex + line.length);
           const rects = range.getClientRects();
           if (rects.length > 0) {
-            console.log('[DOMWalker DEBUG] lineRects<=1, split line:', JSON.stringify(line), 'y:', rects[0].y);
             results.push({
               text: line,
               x: rects[0].x,
@@ -628,7 +619,6 @@ export function getTextLines(
   // lineRects.length > 1 でも、pre/code内で改行を含む場合は改行で分割
   // （Y座標の変化検出だけでは改行が正しく検出されない場合があるため）
   if (preservesWhitespace && text.includes('\n')) {
-    console.log('[DOMWalker DEBUG] lineRects>1 but has newline, forcing split by newline:', JSON.stringify(text));
     const textLines = text.split('\n');
     const results: Array<{ text: string; x: number; y: number; width: number; height: number }> = [];
 
@@ -639,7 +629,6 @@ export function getTextLines(
         range.setEnd(textNode, charIndex + line.length);
         const rects = range.getClientRects();
         if (rects.length > 0) {
-          console.log('[DOMWalker DEBUG] lineRects>1, split line:', JSON.stringify(line), 'y:', rects[0].y);
           results.push({
             text: line,
             x: rects[0].x,
