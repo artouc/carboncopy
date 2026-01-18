@@ -315,10 +315,15 @@ function createTextNodes(textNode: Text, parentElement: Element): TextRenderNode
   const containerX = parentRect.left + paddingLeft;
   const maxWidth = parentRect.width - paddingLeft - paddingRight;
 
+  // 空白を保持する要素（pre, code等）かどうか
+  const whiteSpace = computedStyle.whiteSpace;
+  const preservesWhitespace = whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'pre-line';
+
   // 日本語を含むテキストの場合、ブラウザの行分割を無視して
   // 全テキストを1つのノードとして返す（PDF側で再折り返しする）
+  // ただし、空白を保持する要素の場合は従来通り行ごとに処理
   const normalizedText = text.replace(/\s+/g, ' ').trim();
-  if (containsJapanese(normalizedText)) {
+  if (containsJapanese(normalizedText) && !preservesWhitespace) {
     return [{
       type: 'text' as const,
       parentElement,
@@ -334,7 +339,7 @@ function createTextNodes(textNode: Text, parentElement: Element): TextRenderNode
     }];
   }
 
-  // 日本語を含まない場合は従来通り行ごとに分割
+  // 空白を保持する要素、または日本語を含まない場合は従来通り行ごとに分割
   return lines.map(line => ({
     type: 'text' as const,
     parentElement,
@@ -419,9 +424,19 @@ export function getTextLines(
     return [];
   }
 
+  // 親要素のwhite-spaceスタイルを確認
+  // pre, pre-wrap, pre-line の場合は空白を保持する
+  const computedStyle = window.getComputedStyle(parentElement);
+  const whiteSpace = computedStyle.whiteSpace;
+  const preservesWhitespace = whiteSpace === 'pre' || whiteSpace === 'pre-wrap' || whiteSpace === 'pre-line';
+
   // 先頭の空白をスキップするためのオフセットを計算
-  const leadingWhitespaceMatch = rawText.match(/^\s*/);
-  const leadingWhitespaceLength = leadingWhitespaceMatch ? leadingWhitespaceMatch[0].length : 0;
+  // ただし、空白を保持する要素の場合はスキップしない
+  let leadingWhitespaceLength = 0;
+  if (!preservesWhitespace) {
+    const leadingWhitespaceMatch = rawText.match(/^\s*/);
+    leadingWhitespaceLength = leadingWhitespaceMatch ? leadingWhitespaceMatch[0].length : 0;
+  }
   const text = rawText;
 
   const range = document.createRange();
