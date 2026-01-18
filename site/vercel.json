@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "cd .. && node -e \"const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json'));p.workspaces=[];fs.writeFileSync('package.json',JSON.stringify(p))\" && cd site && npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".output/public"
+}

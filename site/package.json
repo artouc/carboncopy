@@ -21,6 +21,6 @@
         "vue-router": "^4.4.0"
     },
     "dependencies": {
-        "@osaxyz/carboncopy": "*"
+        "@osaxyz/carboncopy": "^0.1.0"
     }
 }
