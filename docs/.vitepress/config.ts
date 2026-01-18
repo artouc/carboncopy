@@ -1,12 +1,18 @@
 import { defineConfig } from "vitepress"
 
 export default defineConfig({
-    title: "carboncopy",
-    description: "High-precision HTML to PDF converter",
+    title: "carboncopy Docs - HTML to PDF クライアントサイドライブラリ",
+    description: "複雑な要素を含むHTMLを正確にPDFにレンダリングするためのクライアントサイドライブラリ。位置・サイズ・スタイルを正確に再現。",
     lang: "ja-JP",
 
     head: [
-        ["link", { rel: "icon", href: "/favicon.ico" }]
+        ["link", { rel: "icon", href: "/favicon.ico" }],
+        ["meta", { property: "og:type", content: "website" }],
+        ["meta", { property: "og:title", content: "carboncopy Docs - HTML to PDF クライアントライブラリ" }],
+        ["meta", { property: "og:description", content: "複雑な要素を含むHTMLを正確にPDFにレンダリングするためのクライアントサイドライブラリ。位置・サイズ・スタイルを正確に再現。" }],
+        ["meta", { property: "og:image", content: "/Docs-OGP.jpg" }],
+        ["meta", { name: "twitter:card", content: "summary_large_image" }],
+        ["meta", { name: "twitter:image", content: "/Docs-OGP.jpg" }],
     ],
 
     cleanUrls: true,
