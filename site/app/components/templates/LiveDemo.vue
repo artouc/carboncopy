@@ -257,19 +257,60 @@ async function handleConvert() {
     is_converting.value = true
 
     try {
-        const { convert } = await import("@osaxyz/carboncopy")
+        const { convert, FontManager } = await import("@osaxyz/carboncopy")
+
+        // 日本語フォントを読み込み（ローカルファイルまたはCDN）
+        let fonts: any[] = []
+        let japanese_fallback: string | undefined = undefined
+
+        try {
+            const fontManager = new FontManager()
+            // ローカルフォントを試す
+            const notoSansJP = await fontManager.loadFromURL(
+                "/fonts/NotoSansJP-Regular.ttf",
+                "NotoSansJP"
+            )
+            fonts = [
+                {
+                    name: "NotoSansJP",
+                    source: { type: "loaded", font: notoSansJP }
+                }
+            ]
+            japanese_fallback = "NotoSansJP"
+        } catch (fontError) {
+            console.warn("Japanese font not available, proceeding without it:", fontError)
+        }
+
+        // デバッグ: DOMの行分割を確認
+        const { walkDOM, getTextLines } = await import("@osaxyz/carboncopy")
+        const nodes = walkDOM(preview_ref.value, { includeImages: true })
+        console.log("Render nodes:", nodes)
+        const textNodes = nodes.flatMap(function flatten(n: any): any[] {
+            const result = []
+            if (n.type === 'text') result.push(n)
+            if (n.children) result.push(...n.children.flatMap(flatten))
+            return result
+        })
+        console.log("Text nodes:", textNodes)
+
         const result = await convert(preview_ref.value, {
             format: "auto",
             background: true,
             info: {
                 title: templates[active_tab.value].name
-            }
+            },
+            fonts,
+            japanese_fallback
         })
         result.download(`${active_tab.value}.pdf`)
         showToast("PDF generated successfully!")
     } catch (error) {
         console.error("PDF conversion error:", error)
-        showToast("Error: PDF conversion failed")
+        if (error instanceof Error) {
+            console.error("Error message:", error.message)
+            console.error("Error stack:", error.stack)
+        }
+        showToast(`Error: ${error instanceof Error ? error.message : "PDF conversion failed"}`)
     } finally {
         is_converting.value = false
     }
